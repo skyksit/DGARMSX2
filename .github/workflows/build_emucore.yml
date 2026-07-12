@@ -1,0 +1,123 @@
+# dsam3(도스게임플레이어) PS2 코어 빌드 — libemucore.so (arm64-v8a)
+#
+# APK 전체가 아니라 네이티브 코어(.so)만 산출물로 뽑아 200store 배포용으로 검증한다.
+# ARMSX2 는 debug variant 에서도 네이티브를 -DCMAKE_BUILD_TYPE=Release 로 빌드하므로
+# assembleUnrestrictedDebug 산출 APK 에서 .so 를 추출해도 최적화 빌드다.
+#
+# 게이트 3종 (하나라도 실패하면 배포 금지):
+#   1. ELF LOAD 정렬 0x4000 (Android 15+ 16KB 페이지 요구)
+#   2. DT_NEEDED 가 시스템 라이브러리 허용 목록 안인지 (예외: libadrenotools.so 는
+#      함께 추출·배포하고 dsam3 NativeApp.loadCore 가 선로드함)
+#   3. JNI 심볼 Java_kr_co_iefriends_pcsx2_NativeApp_* 존재
+name: Build emucore for dsam3
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - 'emucore-v*'
+
+jobs:
+  build-core:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout (with submodules)
+        uses: actions/checkout@v5
+        with:
+          submodules: recursive
+
+      - name: Java and Android SDK Setup
+        uses: actions/setup-java@v5
+        with:
+          distribution: 'temurin'
+          java-version: '17'
+          cache: 'gradle'
+
+      - name: Build (native is CMAKE_BUILD_TYPE=Release even in debug variant)
+        run: ./gradlew assembleUnrestrictedDebug
+
+      - name: Extract arm64 shared libs from APK
+        run: |
+          APK=$(find app/build/outputs/apk -type f -name "*.apk" -print -quit)
+          if [ -z "$APK" ]; then echo "::error::APK not found"; exit 1; fi
+          echo "APK: $APK"
+          mkdir -p extracted
+          unzip -o "$APK" 'lib/arm64-v8a/*.so' -d extracted
+          ls -la extracted/lib/arm64-v8a/
+          test -f extracted/lib/arm64-v8a/libemucore.so
+
+      - name: "Gate 1: 16KB page alignment"
+        run: |
+          SO=extracted/lib/arm64-v8a/libemucore.so
+          readelf -l "$SO" | grep -A1 ' LOAD' || true
+          BAD=$(readelf -lW "$SO" | gawk '$1=="LOAD" { if (strtonum($NF) < 0x4000) print }')
+          if [ -n "$BAD" ]; then
+            echo "::error::libemucore.so LOAD segment alignment < 0x4000 (16KB). Android 15+ 기기에서 로드 실패."
+            readelf -lW "$SO" | grep LOAD
+            exit 1
+          fi
+          echo "OK: all LOAD segments aligned to >= 0x4000"
+
+      - name: "Gate 2: DT_NEEDED allowlist"
+        run: |
+          SO=extracted/lib/arm64-v8a/libemucore.so
+          readelf -d "$SO" | grep NEEDED
+          # Android 시스템 제공 라이브러리 + 함께 배포하는 동반 라이브러리만 허용
+          ALLOW='^lib(c|m|dl|log|z|android|nativewindow|mediandk|amidi|aaudio|OpenSLES|vulkan|EGL|GLESv2|GLESv3|c\+\+_shared|adrenotools)\.so$'
+          FAIL=0
+          for need in $(readelf -d "$SO" | awk '/NEEDED/ {gsub(/[\[\]]/,"",$NF); print $NF}'); do
+            if ! echo "$need" | grep -Eq "$ALLOW"; then
+              echo "::error::허용 목록 밖 DT_NEEDED: $need — 배포 파일 누락으로 로드 실패함"
+              FAIL=1
+            fi
+            if [ "$need" = "libadrenotools.so" ]; then
+              echo "::notice::libadrenotools.so shared 의존 — 동반 배포 필수 (dsam3 NativeApp.loadCore 가 선로드)"
+              test -f extracted/lib/arm64-v8a/libadrenotools.so || { echo "::error::libadrenotools.so 가 APK 에 없음"; FAIL=1; }
+            fi
+            if [ "$need" = "libc++_shared.so" ]; then
+              echo "::error::libc++_shared 의존 — enableRN 빌드로 추정. c++_static 빌드로 다시 실행할 것"
+              FAIL=1
+            fi
+          done
+          exit $FAIL
+
+      - name: "Gate 3: JNI symbols"
+        run: |
+          SO=extracted/lib/arm64-v8a/libemucore.so
+          COUNT=$(readelf --dyn-syms -W "$SO" | grep -c 'Java_kr_co_iefriends_pcsx2_NativeApp_' || true)
+          echo "NativeApp JNI symbols: $COUNT"
+          if [ "$COUNT" -lt 10 ]; then
+            echo "::error::NativeApp JNI 심볼이 없거나 부족함 ($COUNT)"; exit 1
+          fi
+          for sym in initialize runVMThread onNativeSurfaceChanged setPadButton setSetting; do
+            readelf --dyn-syms -W "$SO" | grep -q "Java_kr_co_iefriends_pcsx2_NativeApp_$sym" \
+              || { echo "::error::필수 JNI 심볼 누락: $sym"; exit 1; }
+          done
+          echo "OK: required JNI symbols present"
+
+      - name: Package deploy layout (200store: cores/1.0/arm64-v8a/)
+        run: |
+          mkdir -p deploy/cores/1.0/arm64-v8a
+          cp extracted/lib/arm64-v8a/libemucore.so deploy/cores/1.0/arm64-v8a/
+          if [ -f extracted/lib/arm64-v8a/libadrenotools.so ]; then
+            cp extracted/lib/arm64-v8a/libadrenotools.so deploy/cores/1.0/arm64-v8a/
+          fi
+          (cd deploy && find . -type f -exec sha256sum {} \; | tee SHA256SUMS)
+          mv deploy/SHA256SUMS deploy/cores/1.0/arm64-v8a/
+          echo "COMMIT=${GITHUB_SHA}" > deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
+          date -u +"BUILT_AT=%Y-%m-%dT%H:%M:%SZ" >> deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v5
+        with:
+          name: emucore-arm64-v8a
+          path: deploy/
+
+      - name: Attach to release (tag build only)
+        if: startsWith(github.ref, 'refs/tags/emucore-v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: deploy/cores/1.0/arm64-v8a/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
