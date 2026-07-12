@@ -63,22 +63,25 @@ jobs:
         run: |
           SO=extracted/lib/arm64-v8a/libemucore.so
           readelf -d "$SO" | grep NEEDED
-          # Android 시스템 제공 라이브러리 + 함께 배포하는 동반 라이브러리만 허용
-          ALLOW='^lib(c|m|dl|log|z|android|nativewindow|mediandk|amidi|aaudio|OpenSLES|vulkan|EGL|GLESv2|GLESv3|c\+\+_shared|adrenotools)\.so$'
+          # Android 시스템 제공 라이브러리 + 함께 배포하는 동반 라이브러리(SDL3/adrenotools)만 허용.
+          # 동반 라이브러리는 dsam3 NativeApp.loadCore 의 COMPANION_LIBS 가 선로드한다.
+          ALLOW='^lib(c|m|dl|log|z|android|nativewindow|mediandk|amidi|aaudio|OpenSLES|vulkan|EGL|GLESv2|GLESv3|SDL3|adrenotools)\.so$'
           FAIL=0
           for need in $(readelf -d "$SO" | awk '/NEEDED/ {gsub(/[\[\]]/,"",$NF); print $NF}'); do
             if ! echo "$need" | grep -Eq "$ALLOW"; then
               echo "::error::허용 목록 밖 DT_NEEDED: $need — 배포 파일 누락으로 로드 실패함"
               FAIL=1
             fi
-            if [ "$need" = "libadrenotools.so" ]; then
-              echo "::notice::libadrenotools.so shared 의존 — 동반 배포 필수 (dsam3 NativeApp.loadCore 가 선로드)"
-              test -f extracted/lib/arm64-v8a/libadrenotools.so || { echo "::error::libadrenotools.so 가 APK 에 없음"; FAIL=1; }
-            fi
-            if [ "$need" = "libc++_shared.so" ]; then
-              echo "::error::libc++_shared 의존 — enableRN 빌드로 추정. c++_static 빌드로 다시 실행할 것"
-              FAIL=1
-            fi
+            case "$need" in
+              libSDL3.so|libadrenotools.so)
+                echo "::notice::$need shared 의존 — 동반 배포 필수 (dsam3 COMPANION_LIBS 선로드)"
+                test -f "extracted/lib/arm64-v8a/$need" || { echo "::error::$need 가 APK 에 없음"; FAIL=1; }
+                ;;
+              libc++_shared.so)
+                echo "::error::libc++_shared 의존 — enableRN 빌드로 추정. c++_static 빌드로 다시 실행할 것"
+                FAIL=1
+                ;;
+            esac
           done
           exit $FAIL
 
@@ -100,9 +103,12 @@ jobs:
         run: |
           mkdir -p deploy/cores/1.0/arm64-v8a
           cp extracted/lib/arm64-v8a/libemucore.so deploy/cores/1.0/arm64-v8a/
-          if [ -f extracted/lib/arm64-v8a/libadrenotools.so ]; then
-            cp extracted/lib/arm64-v8a/libadrenotools.so deploy/cores/1.0/arm64-v8a/
-          fi
+          # 동반 shared 라이브러리 — emucore DT_NEEDED 에 있으면 함께 배포
+          for lib in libSDL3.so libadrenotools.so; do
+            if [ -f "extracted/lib/arm64-v8a/$lib" ]; then
+              cp "extracted/lib/arm64-v8a/$lib" deploy/cores/1.0/arm64-v8a/
+            fi
+          done
           (cd deploy && find . -type f -exec sha256sum {} \; | tee SHA256SUMS)
           mv deploy/SHA256SUMS deploy/cores/1.0/arm64-v8a/
           echo "COMMIT=${GITHUB_SHA}" > deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
