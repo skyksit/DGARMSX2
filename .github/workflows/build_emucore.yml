@@ -21,6 +21,9 @@ jobs:
   build-core:
     runs-on: ubuntu-latest
 
+    permissions:
+      contents: write  # emucore-v* 태그 빌드 시 GitHub Release 생성/첨부에 필요
+
     steps:
       - name: Checkout (with submodules)
         uses: actions/checkout@v5
