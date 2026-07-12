@@ -96,7 +96,7 @@ jobs:
           done
           echo "OK: required JNI symbols present"
 
-      - name: Package deploy layout (200store: cores/1.0/arm64-v8a/)
+      - name: "Package deploy layout (200store cores/1.0/arm64-v8a)"
         run: |
           mkdir -p deploy/cores/1.0/arm64-v8a
           cp extracted/lib/arm64-v8a/libemucore.so deploy/cores/1.0/arm64-v8a/
