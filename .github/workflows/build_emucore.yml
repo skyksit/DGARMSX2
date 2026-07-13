@@ -112,6 +112,18 @@ jobs:
               cp "extracted/lib/arm64-v8a/$lib" deploy/cores/1.0/arm64-v8a/
             fi
           done
+          # adrenotools hook 라이브러리 — 커스텀 GPU 드라이버(Turnip) 로딩에 런타임 dlopen 으로 필요.
+          # adrenotools_open_libvulkan(CUSTOM) 이 hookLibDir 에서 libhook_impl.so / libmain_hook.so 를
+          # 반드시 찾는다 (없으면 nullptr → direct dlopen 폴백만 동작). dsam3 서버 드라이버 zip
+          # (drivers/turnip_*.zip) 에 Turnip .so + meta.json 과 함께 동봉할 것.
+          mkdir -p deploy/hooklibs
+          for lib in libhook_impl.so libmain_hook.so libgsl_alloc_hook.so libfile_redirect_hook.so; do
+            if [ -f "extracted/lib/arm64-v8a/$lib" ]; then
+              cp "extracted/lib/arm64-v8a/$lib" deploy/hooklibs/
+            else
+              echo "::warning::$lib 이 APK 에 없음 — adrenotools 커스텀 드라이버 경로가 동작하지 않음 (gradle externalNativeBuild targets 확인 필요)"
+            fi
+          done
           (cd deploy && find . -type f -exec sha256sum {} \; | tee SHA256SUMS)
           mv deploy/SHA256SUMS deploy/cores/1.0/arm64-v8a/
           echo "COMMIT=${GITHUB_SHA}" > deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
@@ -127,6 +139,8 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/emucore-v')
         uses: softprops/action-gh-release@v2
         with:
-          files: deploy/cores/1.0/arm64-v8a/*
+          files: |
+            deploy/cores/1.0/arm64-v8a/*
+            deploy/hooklibs/*
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
