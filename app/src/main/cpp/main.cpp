@@ -703,14 +703,21 @@ Java_kr_co_iefriends_pcsx2_NativeApp_resetKeyStatus(JNIEnv *env, jclass clazz) {
     Pad::UpdateMacroButtons();
 }
 
-// GunCon2 라이트건 조준: 화면 터치 위치(surface/window 픽셀)를 절대 포인터로 주입한다.
-// GunCon2State::CalculatePosition() 이 InputManager::GetPointerAbsolutePosition(0) 을 읽어
-// GSTranslateWindowToDisplayCoordinates 로 화면 좌표에 매핑한다(레터박스 자동 처리).
-// 데스크톱 PCSX2 는 마우스 핸들러가 이 값을 갱신하지만 Android 엔 호출자가 없었다.
+// GunCon2 라이트건 조준: 정규화 터치 좌표(p_nx/p_ny, 0..1, 터치 뷰 기준)를 GS window
+// (backbuffer) 픽셀로 변환해 절대 포인터로 주입한다. GunCon2State::CalculatePosition()
+// 이 GetPointerAbsolutePosition(0) → GSTranslateWindowToDisplayCoordinates 로 매핑하는데,
+// 그 기준 s_last_draw_rect 가 g_gs_device->GetWindowWidth()(= m_window_info.surface_width
+// = s_window_width) 픽셀 공간이다. Android 터치 뷰 px 와 GS window px 스케일이 다르면
+// 조준이 항상 offscreen 으로 빠지므로, 정규화 좌표를 받아 s_window_width/height 로 스케일한다.
+// 데스크톱 PCSX2 는 마우스 핸들러가 window px 를 직접 갱신하지만 Android 엔 호출자가 없었다.
 extern "C" JNIEXPORT void JNICALL
 Java_kr_co_iefriends_pcsx2_NativeApp_setLightgunPosition(JNIEnv *env, jclass clazz,
-                                                         jfloat p_x, jfloat p_y) {
-    InputManager::UpdatePointerAbsolutePosition(0, p_x, p_y);
+                                                         jfloat p_nx, jfloat p_ny) {
+    if (s_window_width <= 0 || s_window_height <= 0)
+        return;
+    InputManager::UpdatePointerAbsolutePosition(0,
+        p_nx * static_cast<float>(s_window_width),
+        p_ny * static_cast<float>(s_window_height));
 }
 
 // GunCon2 버튼 주입: bid 는 guncon2.cpp 의 BID_* (TRIGGER=13, A=3, B=2, C=1,

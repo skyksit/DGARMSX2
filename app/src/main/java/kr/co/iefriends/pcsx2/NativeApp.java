@@ -107,6 +107,7 @@ public class NativeApp {
 	public static native void resetKeyStatus();
 
 	// GunCon2 라이트건 (터치 → 절대 포인터/버튼 주입). port 0 = [USB1].
+	// setLightgunPosition: 정규화 좌표(0..1) — 코어가 GS window px 로 스케일.
 	public static native void setLightgunPosition(float x, float y);
 	public static native void setGunButton(int port, int bid, boolean pressed);
 
