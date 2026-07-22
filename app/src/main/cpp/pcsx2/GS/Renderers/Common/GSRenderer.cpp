@@ -29,6 +29,7 @@
 #include <deque>
 #include <thread>
 #include <mutex>
+#include <android/log.h>  // GunAim 진단 (emucore-v5.3, 확인 후 제거)
 
 static void DumpGSPrivRegs(const GSPrivRegSet& r, const std::string& filename);
 
@@ -922,6 +923,18 @@ void GSTranslateWindowToDisplayCoordinates(float window_x, float window_y, float
 	const float draw_height = s_last_draw_rect.w - s_last_draw_rect.y;
 	const float rel_x = window_x - s_last_draw_rect.x;
 	const float rel_y = window_y - s_last_draw_rect.y;
+	{
+		// GunAim 진단 (emucore-v5.3): 조준 offscreen 원인 파악용. 확인 후 제거.
+		static int s_gunDiag = 0;
+		if ((s_gunDiag++ % 30) == 0)
+		{
+			__android_log_print(ANDROID_LOG_ERROR, "GunAim",
+				"win=(%.1f,%.1f) rect=(%.1f,%.1f,%.1f,%.1f) dw=%.1f dh=%.1f offscreen=%d",
+				window_x, window_y, s_last_draw_rect.x, s_last_draw_rect.y,
+				s_last_draw_rect.z, s_last_draw_rect.w, draw_width, draw_height,
+				(rel_x < 0 || rel_x > draw_width || rel_y < 0 || rel_y > draw_height) ? 1 : 0);
+		}
+	}
 	if (rel_x < 0 || rel_x > draw_width || rel_y < 0 || rel_y > draw_height)
 	{
 		*display_x = -1.0f;
