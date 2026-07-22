@@ -106,6 +106,10 @@ public class NativeApp {
 	public static native void setPadButton(int index, int range, boolean iskeypressed);
 	public static native void resetKeyStatus();
 
+	// GunCon2 라이트건 (터치 → 절대 포인터/버튼 주입). port 0 = [USB1].
+	public static native void setLightgunPosition(float x, float y);
+	public static native void setGunButton(int port, int bid, boolean pressed);
+
 	public static native void setAspectRatio(int type);
 	public static native void setEnableCheats(boolean isonoff);
 	public static native void speedhackLimitermode(int value);

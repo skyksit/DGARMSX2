@@ -20,6 +20,7 @@
 #include "pcsx2/INISettingsInterface.h"
 #include "SIO/Pad/Pad.h"
 #include "Input/InputManager.h"
+#include "USB/USB.h"
 #include "ImGui/ImGuiFullscreen.h"
 #include "Achievements.h"
 #include "Host.h"
@@ -700,6 +701,27 @@ Java_kr_co_iefriends_pcsx2_NativeApp_resetKeyStatus(JNIEnv *env, jclass clazz) {
     }
 
     Pad::UpdateMacroButtons();
+}
+
+// GunCon2 라이트건 조준: 화면 터치 위치(surface/window 픽셀)를 절대 포인터로 주입한다.
+// GunCon2State::CalculatePosition() 이 InputManager::GetPointerAbsolutePosition(0) 을 읽어
+// GSTranslateWindowToDisplayCoordinates 로 화면 좌표에 매핑한다(레터박스 자동 처리).
+// 데스크톱 PCSX2 는 마우스 핸들러가 이 값을 갱신하지만 Android 엔 호출자가 없었다.
+extern "C" JNIEXPORT void JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_setLightgunPosition(JNIEnv *env, jclass clazz,
+                                                         jfloat p_x, jfloat p_y) {
+    InputManager::UpdatePointerAbsolutePosition(0, p_x, p_y);
+}
+
+// GunCon2 버튼 주입: bid 는 guncon2.cpp 의 BID_* (TRIGGER=13, A=3, B=2, C=1,
+// SHOOT_OFFSCREEN=16, RECALIBRATE=17 등). SetDeviceBindValue 가 raw bind_index 로
+// GunCon2Device::SetBindingValue 에 전달된다. INI 바인딩 계층 우회(패드가
+// Pad::SetControllerState 를 직접 부르는 것과 동일 접근).
+extern "C" JNIEXPORT void JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_setGunButton(JNIEnv *env, jclass clazz,
+                                                  jint p_port, jint p_bid, jboolean p_pressed) {
+    USB::SetDeviceBindValue(static_cast<u32>(p_port), static_cast<u32>(p_bid),
+                            p_pressed ? 1.0f : 0.0f);
 }
 
 extern "C"
