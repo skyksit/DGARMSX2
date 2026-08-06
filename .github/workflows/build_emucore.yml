@@ -39,6 +39,11 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      # shaderc 의 SPIRV-Tools/glslang 등은 vendored 도 submodule 도 아니라서
+      # 미실행 시 CMake configure 가 "SPIRV-Tools was not found" 로 실패한다 (로컬 실측).
+      - name: Fetch shaderc third-party deps
+        run: python3 platforms/android/app/src/main/cpp/3rdparty/shaderc/utils/git-sync-deps
+
       - name: Build (githubRelease, lib name emucore)
         working-directory: platforms/android
         run: ./gradlew :app:assembleGithubRelease -Parmsx2.nativeLibName=emucore
