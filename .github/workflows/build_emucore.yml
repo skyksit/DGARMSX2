@@ -44,6 +44,12 @@ jobs:
       - name: Fetch shaderc third-party deps
         run: python3 platforms/android/app/src/main/cpp/3rdparty/shaderc/utils/git-sync-deps
 
+      # librashader(RetroArch .slangp)는 cargo 가 있으면 자동 활성화되어 Android 타깃을
+      # 빌드한다. 러너 rustup 은 host std 만 있어 타깃 미설치 시 E0463 으로 죽는다 (실측).
+      # 활성화 시 emucore 에 DT_NEEDED liblibrashader_capi.so 가 생겨 동반 배포 필수.
+      - name: Install Rust Android target
+        run: rustup target add aarch64-linux-android
+
       - name: Build (githubRelease, lib name emucore)
         working-directory: platforms/android
         run: ./gradlew :app:assembleGithubRelease -Parmsx2.nativeLibName=emucore
@@ -86,7 +92,7 @@ jobs:
           SO=extracted/lib/arm64-v8a/libemucore.so
           readelf -d "$SO" | grep NEEDED
           # Android 시스템 제공 라이브러리 + 함께 배포하는 동반 라이브러리(SDL3/adrenotools)만 허용
-          ALLOW='^lib(c|m|dl|log|z|android|nativewindow|mediandk|amidi|aaudio|OpenSLES|vulkan|EGL|GLESv2|GLESv3|adrenotools|SDL3)\.so$'
+          ALLOW='^lib(c|m|dl|log|z|android|nativewindow|mediandk|amidi|aaudio|OpenSLES|vulkan|EGL|GLESv1_CM|GLESv2|GLESv3|adrenotools|SDL3|librashader_capi)\.so$'
           FAIL=0
           for need in $(readelf -d "$SO" | awk '/NEEDED/ {gsub(/[\[\]]/,"",$NF); print $NF}'); do
             if ! echo "$need" | grep -Eq "$ALLOW"; then
@@ -94,7 +100,7 @@ jobs:
               FAIL=1
             fi
             case "$need" in
-              libadrenotools.so|libSDL3.so)
+              libadrenotools.so|libSDL3.so|liblibrashader_capi.so)
                 echo "::notice::$need shared 의존 — 동반 배포 필수 (NativeApp.loadCore 가 선로드)"
                 test -f "extracted/lib/arm64-v8a/$need" || { echo "::error::$need 가 APK 에 없음"; FAIL=1; }
                 ;;
@@ -126,7 +132,7 @@ jobs:
         run: |
           mkdir -p deploy/cores/1.0/arm64-v8a
           cp extracted/lib/arm64-v8a/libemucore.so deploy/cores/1.0/arm64-v8a/
-          for extra in libadrenotools.so libSDL3.so; do
+          for extra in libadrenotools.so libSDL3.so liblibrashader_capi.so; do
             if [ -f "extracted/lib/arm64-v8a/$extra" ]; then
               cp "extracted/lib/arm64-v8a/$extra" deploy/cores/1.0/arm64-v8a/
             fi
