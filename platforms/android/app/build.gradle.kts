@@ -133,6 +133,17 @@ android {
                     // the CMake invocation, so a build is reproducible from the Gradle property
                     // alone. Absent = Discord compiles out.
                     armsx2DiscordSdkDir?.let { arguments += "-DDISCORD_SDK_DIR=$it" }
+                    // Windows hosts: shaderc's Python discovery misses the WindowsApps
+                    // python shim; let the developer point CMake at a real interpreter.
+                    // All three spellings are needed — shaderc/setup_build.cmake uses
+                    // FindPythonInterp (PYTHON_EXECUTABLE), shaderc/CMakeLists.txt uses
+                    // FindPython (Python_EXECUTABLE), and spirv-tools uses FindPython3
+                    // (Python3_EXECUTABLE).
+                    providers.gradleProperty("armsx2.pythonExecutable").orNull?.let {
+                        arguments += "-DPYTHON_EXECUTABLE=$it"
+                        arguments += "-DPython_EXECUTABLE=$it"
+                        arguments += "-DPython3_EXECUTABLE=$it"
+                    }
                     arguments += "-DCMAKE_BUILD_TYPE=Release"
                     if (armsx2RecTestHooks.get() == "true")
                         arguments += "-DENABLE_RECOMPILER_TEST_HOOKS=ON"
