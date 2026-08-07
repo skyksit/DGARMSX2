@@ -3665,9 +3665,12 @@ void VMManager::WarnAboutUnsafeSettings()
 			append(ICON_FA_TV,
 				TRANSLATE_SV("VMManager", "Integer scaling is enabled. This may shrink the image."));
 		}
-#if !(defined(__APPLE__) && TARGET_OS_IPHONE)
+#if !(defined(__APPLE__) && TARGET_OS_IPHONE) && !defined(__ANDROID__)
 		// iOS always renders with Metal; "Automatic" is not a meaningful choice
 		// there, so this desktop-only warning is a false positive and is omitted.
+		// Android likewise: the frontend (dsam3/retrople) deliberately forces the
+		// renderer (OpenGL/Vulkan) per user selection, so "not Automatic" is the
+		// intended state, not a misconfiguration.
 		static bool render_change_warn = false;
 		if (EmuConfig.GS.Renderer != GSRendererType::Auto && EmuConfig.GS.Renderer != GSRendererType::SW && !render_change_warn)
 		{

@@ -2487,17 +2487,8 @@ void Host::BeginPresentFrame() {
 
 void Host::OnGameChanged(const std::string& title, const std::string& elf_override, const std::string& disc_path,
                          const std::string& disc_serial, u32 disc_crc, u32 current_crc) {
-    // Free-software / anti-resale notice on each game boot, rendered through PCSX2's own OSD (the
-    // same message system + renderer as the FPS/stats overlay) so it reads as a native emulator
-    // pop-up rather than an Android layer drawn on top. Keyed so a re-fire just refreshes the one
-    // message. Guarded on a real game loading — OnGameChanged also fires with everything empty on
-    // shutdown/eject.
-    if (current_crc != 0 || !disc_path.empty() || !title.empty()) {
-        Host::AddKeyedOSDMessage("armsx2_free_software_notice",
-            "You are using ARMSX2, and it should not be sold, or distributed as part of any other "
-            "app. If you paid for this app, you should get your money back.",
-            10.0f);
-    }
+    // GPLv3 attribution lives in the host app's settings screen (license notice + public
+    // source link), so no per-boot OSD notice is emitted here.
 }
 
 void Host::PumpMessagesOnCPUThread() {
