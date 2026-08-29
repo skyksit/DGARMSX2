@@ -55,6 +55,7 @@
 #include "ps2/BiosTools.h"
 #include "BuildVersion.h"
 #include "native-lib.h"
+#include "cheat_search.h"
 #include "libchdr/chd.h"
 #include <algorithm>
 #include <cmath>
@@ -1664,6 +1665,71 @@ Java_kr_co_iefriends_pcsx2_NativeApp_reloadPatches(JNIEnv *env, jclass clazz) {
     return static_cast<jint>(active_cheats);
 }
 
+// ── Cheat search (v7) ────────────────────────────────────────────────────────
+// RetroArch-style EE RAM scanner backing dsam3's in-game cheat search overlay.
+// Read-only over guest memory (freezing goes through pnach + reloadPatches),
+// so none of these marshal to the CPU thread; EmuCheatSearch serializes
+// internally and guards VM liveness itself. Safe from any app thread.
+// cheatSearchGetMatchCount doubles as the app's v7 feature probe
+// (UnsatisfiedLinkError on a v6 core), so keep it side-effect free.
+
+extern "C"
+JNIEXPORT jboolean JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_cheatSearchStart(JNIEnv*, jclass, jint p_bitsize) {
+    return EmuCheatSearch::getInstance().searchStart(static_cast<unsigned>(p_bitsize))
+        ? JNI_TRUE : JNI_FALSE;
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_cheatSearchUpdate(JNIEnv*, jclass,
+                                                       jint p_comparetype, jlong p_operand) {
+    return EmuCheatSearch::getInstance().searchUpdate(
+        static_cast<unsigned>(p_comparetype), static_cast<uint32_t>(p_operand));
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_cheatSearchGetMatchCount(JNIEnv*, jclass) {
+    return EmuCheatSearch::getInstance().getMatchCount();
+}
+
+extern "C"
+JNIEXPORT jint JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_cheatSearchGetBitSize(JNIEnv*, jclass) {
+    return EmuCheatSearch::getInstance().getSearchBitSize();
+}
+
+extern "C"
+JNIEXPORT jlongArray JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_cheatSearchGetMatches(JNIEnv *env, jclass,
+                                                           jint p_offset, jint p_maxcount) {
+    const int maxCount = std::clamp(static_cast<int>(p_maxcount), 0, 1000);
+    const std::vector<int64_t> matches =
+        EmuCheatSearch::getInstance().getMatches(p_offset, maxCount);
+    jlongArray result = env->NewLongArray(static_cast<jsize>(matches.size()));
+    if (result && !matches.empty()) {
+        static_assert(sizeof(jlong) == sizeof(int64_t));
+        env->SetLongArrayRegion(result, 0, static_cast<jsize>(matches.size()),
+            reinterpret_cast<const jlong*>(matches.data()));
+    }
+    return result;
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_cheatSearchStop(JNIEnv*, jclass) {
+    EmuCheatSearch::getInstance().searchStop();
+}
+
+extern "C"
+JNIEXPORT jlong JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_cheatSearchReadValue(JNIEnv*, jclass,
+                                                          jlong p_address, jint p_bitsize) {
+    return EmuCheatSearch::getInstance().readValue(
+        static_cast<uint32_t>(p_address), static_cast<unsigned>(p_bitsize));
+}
+
 extern "C"
 JNIEXPORT jboolean JNICALL
 Java_kr_co_iefriends_pcsx2_NativeApp_reloadTextureReplacements(JNIEnv *env, jclass clazz) {
@@ -2703,6 +2769,9 @@ Java_kr_co_iefriends_pcsx2_NativeApp_runVMThread(JNIEnv *env, jclass clazz,
         // game stopped mid-fast-forward could leave it set. Clear it on every boot
         // so a fresh game never starts with its display cap silently bypassed.
         GSSetPresentCapSuspended(false);
+        // Arm the cheat-search engine only while eeMem is live; also drops any
+        // session left over from a previous game (fresh boots start clean).
+        EmuCheatSearch::getInstance().onVMStart();
         VMState _vmState = VMState::Running;
         VMManager::SetState(_vmState);
         ////
@@ -2737,6 +2806,9 @@ Java_kr_co_iefriends_pcsx2_NativeApp_runVMThread(JNIEnv *env, jclass clazz,
             }
         }
         ////
+        // Must precede VMManager::Shutdown: this blocks on the engine's mutex,
+        // so an in-flight scan on an app thread drains before eeMem goes away.
+        EmuCheatSearch::getInstance().onVMShutdown();
         VMManager::Shutdown(false);
     }
     else

@@ -121,6 +121,7 @@ set(ARMSX2_EMUCORE_LIBRARY_NAME "emucore_4k" CACHE STRING "Android emucore share
 
 add_library(${ARMSX2_EMUCORE_LIBRARY_NAME} SHARED
 	native-lib.cpp
+	cheat_search.cpp
 )
 
 # The Discord bridge is its OWN shared library, and emucore must never link it.

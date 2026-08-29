@@ -184,6 +184,28 @@ public class NativeApp {
 	 */
 	public static native void purgeGlobalPatchEnableLists();
 
+	// ---- Cheat search (v7) ------------------------------------------------------
+	// RetroArch-style EE RAM scanner. Read-only: freezing a found value is done by
+	// writing a `patch=1,EE,...` pnach line and calling reloadPatches(). The native
+	// session survives the UI being closed; a fresh game boot clears it.
+	// Bit sizes follow the RetroArch convention: 3=8bit, 4=16bit, 5=32bit.
+	// Compare types (RetroArch order): 0 EXACT(==operand), 1 LT(<prev), 2 LTE,
+	// 3 GT(>prev), 4 GTE, 5 EQ(unchanged), 6 NEQ(changed), 7 EQPLUS, 8 EQMINUS.
+
+	/** Begin a session: snapshot RAM, all aligned items become candidates. */
+	public static native boolean cheatSearchStart(int bitSize);
+	/** One comparison pass; returns remaining match count, -1 = no session. */
+	public static native int cheatSearchUpdate(int compareType, long operand);
+	/** Remaining match count, -1 = no session. Side-effect free (v7 probe). */
+	public static native int cheatSearchGetMatchCount();
+	/** Bit size (3/4/5) of the live session, -1 = no session. */
+	public static native int cheatSearchGetBitSize();
+	/** Up to maxCount (clamped to 1000) matches from offset, flattened as [eeAddress, currentValue] pairs. */
+	public static native long[] cheatSearchGetMatches(int offset, int maxCount);
+	public static native void cheatSearchStop();
+	/** Live value at an EE address (pnach address space), -1 on failure. */
+	public static native long cheatSearchReadValue(long address, int bitSize);
+
 	// ---- USB lightgun (GunCon 2) ----------------------------------------------
 	/** GunCon2 binding ids, from pcsx2/USB/usb-lightgun/guncon2.cpp. */
 	public static final int GUNCON_C = 1;
