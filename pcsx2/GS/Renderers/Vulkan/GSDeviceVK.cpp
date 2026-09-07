@@ -2988,11 +2988,25 @@ GSDevice::PresentResult GSDeviceVK::DoBeginPresent(bool frame_skip)
 	}
 
 	VkResult res = m_resize_requested ? VK_ERROR_OUT_OF_DATE_KHR : m_swap_chain->AcquireNextImage();
-	if (res != VK_SUCCESS)
+	// Android/Adreno: treat VK_SUBOPTIMAL_KHR as success — the image is validly
+	// acquired and can be rendered and presented (the vkQueuePresentKHR path in
+	// EndPresent already tolerates it, and so does the retry guard at the end of
+	// this block). Adreno drivers intermittently return SUBOPTIMAL whenever
+	// SurfaceFlinger's composition state changes — e.g. the app window redraws
+	// because the on-screen VPAD was touched. Falling into the recreate path for
+	// that costs a full GPU stall (ReleaseCurrentImage() calls WaitForGPUIdle()
+	// for an acquired image when swapchain_maintenance1 is present, then
+	// ResizeWindow() tears the swap chain down and rebuilds it) and presents a
+	// blank frame, which the user sees as the whole game screen flickering on
+	// every such touch. Only VK_ERROR_OUT_OF_DATE_KHR genuinely requires
+	// recreation; a real geometry change arrives as m_resize_requested or
+	// OUT_OF_DATE anyway. Same rule as the LibretroDroid Vulkan renderer's
+	// Adreno workaround.
+	if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
 	{
 		m_swap_chain->ReleaseCurrentImage();
 
-		if (res == VK_SUBOPTIMAL_KHR || res == VK_ERROR_OUT_OF_DATE_KHR)
+		if (res == VK_ERROR_OUT_OF_DATE_KHR)
 		{
 			ResizeWindow(0, 0, m_window_info.surface_scale);
 			ImGuiManager::WindowResized();
@@ -6441,7 +6455,12 @@ void GSDeviceVK::RenderImGui()
 void GSDeviceVK::RenderBlankFrame()
 {
 	VkResult res = m_swap_chain->AcquireNextImage();
-	if (res != VK_SUCCESS)
+	// Same SUBOPTIMAL rule as DoBeginPresent: the image is acquired and
+	// presentable, and bailing out here would leave it neither presented nor
+	// released while m_image_acquire_result stays latched at SUBOPTIMAL — every
+	// later call reads the cached value and returns early, so the blank frame
+	// never reaches the screen until the normal present path resets it.
+	if (res != VK_SUCCESS && res != VK_SUBOPTIMAL_KHR)
 	{
 		Console.Error("VK: Failed to acquire image for blank frame present");
 		return;
