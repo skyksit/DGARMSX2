@@ -24,6 +24,16 @@
 set(LIBRASHADER_PIN "87e8a97b50516d997defeaa168173dcd185d4022"
     CACHE STRING "Pinned librashader commit. Bump deliberately — never track a branch.")
 
+# ---- Explicit opt-out (-DARMSX2_DISABLE_LIBRASHADER=ON / gradle -Parmsx2.librashader=false) ----
+# Skips the cargo probe entirely so a host that happens to have Rust installed still produces
+# the single-.so core we ship (no liblibrashader_capi.so / libc++_shared.so DT_NEEDED chain).
+option(ARMSX2_DISABLE_LIBRASHADER "Force RetroArch (.slangp) shader support off even if cargo is present" OFF)
+if(ARMSX2_DISABLE_LIBRASHADER)
+	message(STATUS "librashader: explicitly disabled (ARMSX2_DISABLE_LIBRASHADER=ON).")
+	set(ARMSX2_HAVE_LIBRASHADER OFF PARENT_SCOPE)
+	return()
+endif()
+
 # ---- Rust toolchain (optional) ---------------------------------------------------
 find_program(CARGO_EXECUTABLE cargo HINTS "$ENV{HOME}/.cargo/bin" "$ENV{CARGO_HOME}/bin")
 if(NOT CARGO_EXECUTABLE)

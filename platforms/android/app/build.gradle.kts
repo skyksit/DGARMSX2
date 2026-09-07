@@ -170,6 +170,13 @@ android {
                         arguments += "-DPython_EXECUTABLE=$it"
                         arguments += "-DPython3_EXECUTABLE=$it"
                     }
+                    // librashader(Rust, .slangp 셰이더 체인) 명시 비활성. 배포 코어는 단일 .so 정책이라
+                    // OFF 가 기본 의도인데, cargo 가 설치된 호스트(특히 Windows — cargo 가 NDK clang
+                    // 래퍼 .cmd 를 exec 못 해 링크 실패)에서는 CMake 가 자동으로 켜 버린다.
+                    // -Parmsx2.librashader=false 로 cargo 탐색 자체를 건너뛴다.
+                    if (providers.gradleProperty("armsx2.librashader").orNull == "false") {
+                        arguments += "-DARMSX2_DISABLE_LIBRASHADER=ON"
+                    }
                     arguments += "-DCMAKE_BUILD_TYPE=Release"
                     if (armsx2RecTestHooks.get() == "true")
                         arguments += "-DENABLE_RECOMPILER_TEST_HOOKS=ON"
