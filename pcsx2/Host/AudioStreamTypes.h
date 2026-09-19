@@ -38,6 +38,12 @@ struct AudioStreamParameters
 	// reclaim when idle — so pause/resume stays a cheap play-state toggle rather
 	// than a full stream rebuild. Ignored by every non-Oboe backend.
 	bool android_use_opensles = DEFAULT_ANDROID_USE_OPENSLES;
+	// Android/Oboe only — see OboeAudioStream.cpp. Each one is a kill switch the host can flip
+	// from the ini without a core rebuild; the defaults are the tuned behaviour.
+	bool android_pin_audio_thread = DEFAULT_ANDROID_PIN_AUDIO_THREAD;
+	bool android_audio_usage_game = DEFAULT_ANDROID_AUDIO_USAGE_GAME;
+	bool android_adaptive_buffer = DEFAULT_ANDROID_ADAPTIVE_BUFFER;
+	u16 android_buffer_capacity_ms = DEFAULT_ANDROID_BUFFER_CAPACITY_MS;
 	u16 buffer_ms = DEFAULT_BUFFER_MS;
 	u16 output_latency_ms = DEFAULT_OUTPUT_LATENCY_MS;
 
@@ -63,6 +69,12 @@ struct AudioStreamParameters
 	static constexpr u16 DEFAULT_OUTPUT_LATENCY_MS = 20;
 	static constexpr bool DEFAULT_OUTPUT_LATENCY_MINIMAL = false;
 	static constexpr bool DEFAULT_ANDROID_USE_OPENSLES = false;
+	static constexpr bool DEFAULT_ANDROID_PIN_AUDIO_THREAD = true;
+	static constexpr bool DEFAULT_ANDROID_AUDIO_USAGE_GAME = true;
+	static constexpr bool DEFAULT_ANDROID_ADAPTIVE_BUFFER = true;
+	// Requested device buffer CAPACITY — the ceiling setBufferSizeInFrames() may grow to, not the
+	// latency itself. Must stay above the legacy hardcoded 4096 frames (85 ms @ 48 kHz).
+	static constexpr u16 DEFAULT_ANDROID_BUFFER_CAPACITY_MS = 100;
 
 	static constexpr u16 DEFAULT_EXPAND_BLOCK_SIZE = 2048;
 	static constexpr float DEFAULT_EXPAND_CIRCULAR_WRAP = 90.0f;

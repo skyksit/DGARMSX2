@@ -481,6 +481,24 @@ Java_kr_co_iefriends_pcsx2_NativeApp_initialize(JNIEnv *env, jclass clazz,
 // hash is the only key that matches reliably (RA carries no PS2 serials).
 //
 // Repoints the global CDVD, so it returns "" while a VM is running rather than disturbing it.
+// Audio telemetry for the host's diagnostics. A mutex copy of the 1 Hz snapshot SPU2 publishes
+// from the CPU thread — never touches the stream, safe from any Java thread. Hosts built against
+// an older core must probe this symbol (UnsatisfiedLinkError) like the cheatSearch* family.
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_getAudioStatsJSON(JNIEnv* env, jclass)
+{
+    const SPU2::AudioStatsSnapshot s = SPU2::GetAudioStatsSnapshot();
+    const std::string json = fmt::format(
+        R"({{"underruns":{},"fabricated":{},"overruns":{},"lowWater":{},"buffered":{},"target":{},)"
+        R"("xruns":{},"devBuffer":{},"burst":{},"sampleRate":{},"windows":{},)"
+        R"("totalUnderruns":{},"totalFabricated":{},"totalOverruns":{}}})",
+        s.underruns, s.fabricated_frames, s.overruns, s.low_water_frames, s.buffered_frames, s.target_frames,
+        s.backend_xruns, s.backend_buffer_frames, s.backend_burst_frames, s.sample_rate, s.windows,
+        s.total_underruns, s.total_fabricated_frames, s.total_overruns);
+    return env->NewStringUTF(json.c_str());
+}
+
 // Callers must be off the UI thread — it reads the disc.
 extern "C"
 JNIEXPORT jstring JNICALL

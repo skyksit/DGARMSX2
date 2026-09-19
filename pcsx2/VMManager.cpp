@@ -3188,6 +3188,9 @@ void VMManager::Internal::VSyncOnCPUThread()
 
 	Achievements::FrameUpdate();
 
+	// 1 Hz audio underrun/xrun telemetry (a clock read per frame otherwise).
+	SPU2::PollAudioStats();
+
 	PollDiscordPresence();
 }
 

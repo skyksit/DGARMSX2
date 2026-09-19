@@ -11,7 +11,11 @@
 #include "R3000A.h"
 #include "VMManager.h"
 
+#include "common/Console.h"
 #include "common/Error.h"
+#include "common/Timer.h"
+
+#include <mutex>
 
 #if defined(__aarch64__) || defined(_M_ARM64)
 #include "SPU2/spu2_neon.h"
@@ -38,6 +42,12 @@ static std::array<float, AudioStream::CHUNK_SIZE * 2> s_current_chunk;
 static u32 s_current_chunk_pos;
 static u32 s_standard_volume = 0;
 static u32 s_fast_forward_volume = 0;
+
+// 1 Hz audio telemetry (PollAudioStats / GetAudioStatsSnapshot).
+static std::mutex s_audio_stats_mutex;
+static SPU2::AudioStatsSnapshot s_audio_stats;
+static Common::Timer::Value s_audio_stats_last_tick = 0;
+static u32 s_audio_stats_prev_xruns = 0;
 
 float DCFilterIn[2], DCFilterOut[2];
 
@@ -408,6 +418,59 @@ void SPU2::CheckForConfigChanges(const Pcsx2Config& old_config)
 			CloseFileLog();
 	}
 #endif
+}
+
+void SPU2::PollAudioStats()
+{
+	// CPU thread only — s_output_stream is owned by this thread (CreateOutputStream), so reading
+	// it here cannot race a recreate.
+	if (!s_output_stream)
+		return;
+
+	const Common::Timer::Value now = Common::Timer::GetCurrentValue();
+	if (s_audio_stats_last_tick != 0 && Common::Timer::ConvertValueToSeconds(now - s_audio_stats_last_tick) < 1.0)
+		return;
+	s_audio_stats_last_tick = now;
+
+	const AudioStream::Stats st = s_output_stream->GetStats();
+	s_output_stream->ResetStatsWindow();
+
+	{
+		std::lock_guard<std::mutex> lock(s_audio_stats_mutex);
+		s_audio_stats.underruns = st.underruns;
+		s_audio_stats.fabricated_frames = st.fabricated_frames;
+		s_audio_stats.overruns = st.overruns;
+		s_audio_stats.low_water_frames = st.low_water_frames;
+		s_audio_stats.buffered_frames = st.buffered_frames;
+		s_audio_stats.target_frames = st.target_frames;
+		s_audio_stats.backend_xruns = st.backend_xruns;
+		s_audio_stats.backend_buffer_frames = st.backend_buffer_frames;
+		s_audio_stats.backend_burst_frames = st.backend_burst_frames;
+		s_audio_stats.sample_rate = s_output_stream->GetSampleRate();
+		s_audio_stats.windows++;
+		s_audio_stats.total_underruns += st.underruns;
+		s_audio_stats.total_fabricated_frames += st.fabricated_frames;
+		s_audio_stats.total_overruns += st.overruns;
+	}
+
+	// One line, only when something went wrong — silent in the steady state so it never spams.
+	// How to read it: low_water≈0 with dev xrun unchanged → the EMULATOR fed the ring late
+	// (CPU-bound: raise BufferMS / lower the load). Comfortable low_water with dev xrun rising →
+	// the DEVICE pulled late (route jitter, e.g. A2DP: more capacity / the grow tuner).
+	const bool xruns_changed = (st.backend_xruns != s_audio_stats_prev_xruns);
+	s_audio_stats_prev_xruns = st.backend_xruns;
+	if (st.underruns != 0 || st.overruns != 0 || xruns_changed)
+	{
+		WARNING_LOG("(Audio) 1s: underrun={} fabricated={}f overrun={} low_water={}f buffered={}f target={}f | dev xrun={} buf={}f burst={}f",
+			st.underruns, st.fabricated_frames, st.overruns, st.low_water_frames, st.buffered_frames, st.target_frames,
+			st.backend_xruns, st.backend_buffer_frames, st.backend_burst_frames);
+	}
+}
+
+SPU2::AudioStatsSnapshot SPU2::GetAudioStatsSnapshot()
+{
+	std::lock_guard<std::mutex> lock(s_audio_stats_mutex);
+	return s_audio_stats;
 }
 
 void SPU2async()

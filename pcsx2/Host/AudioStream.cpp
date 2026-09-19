@@ -234,6 +234,28 @@ u32 AudioStream::GetBufferedFramesRelaxed() const
 	return (wpos + m_buffer_size - rpos) % m_buffer_size;
 }
 
+AudioStream::Stats AudioStream::GetStats() const
+{
+	Stats st = {};
+	st.underruns = m_stat_underruns.load(std::memory_order_relaxed);
+	st.fabricated_frames = m_stat_fabricated_frames.load(std::memory_order_relaxed);
+	st.overruns = m_stat_overruns.load(std::memory_order_relaxed);
+	st.buffered_frames = GetBufferedFramesRelaxed();
+	const u32 low = m_stat_low_water.load(std::memory_order_relaxed);
+	st.low_water_frames = (low == std::numeric_limits<u32>::max()) ? st.buffered_frames : low;
+	st.target_frames = m_target_buffer_size;
+	FillBackendStats(&st);
+	return st;
+}
+
+void AudioStream::ResetStatsWindow()
+{
+	m_stat_underruns.store(0, std::memory_order_relaxed);
+	m_stat_fabricated_frames.store(0, std::memory_order_relaxed);
+	m_stat_overruns.store(0, std::memory_order_relaxed);
+	m_stat_low_water.store(std::numeric_limits<u32>::max(), std::memory_order_relaxed);
+}
+
 u32 AudioStream::PullFrames(SampleType* samples, u32 num_frames)
 {
 	num_frames = std::min(num_frames, GetBufferedFramesRelaxed());
@@ -270,6 +292,7 @@ void AudioStream::ReadFrames(SampleType* samples, u32 num_frames)
 		silence_frames = frames_to_read - available_frames;
 		frames_to_read = available_frames;
 		m_filling = true;
+		m_stat_underruns.fetch_add(1, std::memory_order_relaxed);
 
 		if (IsStretchEnabled())
 			StretchUnderrun();
@@ -302,8 +325,17 @@ void AudioStream::ReadFrames(SampleType* samples, u32 num_frames)
 		m_rpos.store(rpos, std::memory_order_release);
 	}
 
+	// Telemetry: ring occupancy right after this read (available_frames was sampled before it).
+	// Single writer — the backend callback thread; the CPU-thread poller only needs a sane value.
+	{
+		const u32 remaining = available_frames - frames_to_read;
+		if (remaining < m_stat_low_water.load(std::memory_order_relaxed))
+			m_stat_low_water.store(remaining, std::memory_order_relaxed);
+	}
+
 	if (silence_frames > 0)
 	{
+		m_stat_fabricated_frames.fetch_add(silence_frames, std::memory_order_relaxed);
 		if (frames_to_read > 0)
 		{
 			// super basic resampler - spread the input samples evenly across the output samples. will sound like ass and have
@@ -359,6 +391,7 @@ void AudioStream::InternalWriteFrames(const SampleType* data, u32 num_frames)
 	const u32 free = m_buffer_size - GetBufferedFramesRelaxed();
 	if (free <= num_frames)
 	{
+		m_stat_overruns.fetch_add(1, std::memory_order_relaxed);
 		if (IsStretchEnabled())
 		{
 			StretchOverrun();
@@ -796,6 +829,10 @@ void AudioStreamParameters::LoadSave(SettingsWrapper& wrap, const char* section)
 	wrap.EnumEntry(section, "ExpansionMode", expansion_mode, &AudioStream::ParseExpansionMode, &AudioStream::GetExpansionModeName, DEFAULT_EXPANSION_MODE);
 	minimal_output_latency = wrap.EntryBitBool(section, "OutputLatencyMinimal", DEFAULT_OUTPUT_LATENCY_MINIMAL);
 	android_use_opensles = wrap.EntryBitBool(section, "AndroidOpenSLES", DEFAULT_ANDROID_USE_OPENSLES);
+	android_pin_audio_thread = wrap.EntryBitBool(section, "AndroidPinAudioThread", DEFAULT_ANDROID_PIN_AUDIO_THREAD);
+	android_audio_usage_game = wrap.EntryBitBool(section, "AndroidAudioUsageGame", DEFAULT_ANDROID_AUDIO_USAGE_GAME);
+	android_adaptive_buffer = wrap.EntryBitBool(section, "AndroidAdaptiveAudioBuffer", DEFAULT_ANDROID_ADAPTIVE_BUFFER);
+	android_buffer_capacity_ms = static_cast<u16>(std::clamp<int>(wrap.EntryBitfield(section, "OboeBufferCapacityMS", android_buffer_capacity_ms, DEFAULT_ANDROID_BUFFER_CAPACITY_MS), 0, std::numeric_limits<u16>::max()));
 	buffer_ms = static_cast<u16>(std::clamp<int>(wrap.EntryBitfield(section, "BufferMS", buffer_ms, DEFAULT_BUFFER_MS), 0, std::numeric_limits<u16>::max()));
 	output_latency_ms = static_cast<u16>(std::clamp<int>(wrap.EntryBitfield(section, "OutputLatencyMS", output_latency_ms, DEFAULT_OUTPUT_LATENCY_MS), 0, std::numeric_limits<u16>::max()));
 

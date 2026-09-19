@@ -71,6 +71,26 @@ public:
 
 	u32 GetBufferedFramesRelaxed() const;
 
+	/// Lightweight ring telemetry. The counters are bumped on the backend callback thread
+	/// (ReadFrames) and on the producer (InternalWriteFrames) with relaxed atomics; a reader on
+	/// any thread gets statistically sane values. They exist to tell two failure modes apart that
+	/// used to look identical: the EMULATOR feeding the ring late (low_water≈0, no device xruns)
+	/// versus the DEVICE pulling late (device xruns with a comfortable low_water).
+	struct Stats
+	{
+		u32 underruns;          ///< ReadFrames() had to fabricate output (stretch or silence)
+		u32 fabricated_frames;  ///< frames of fabricated output in the window
+		u32 overruns;           ///< InternalWriteFrames() dropped/skipped because the ring was full
+		u32 low_water_frames;   ///< minimum ring occupancy seen right after a read, in the window
+		u32 buffered_frames;    ///< occupancy now
+		u32 target_frames;      ///< m_target_buffer_size
+		u32 backend_xruns;      ///< device-side xruns since the stream opened (0 if unsupported)
+		u32 backend_buffer_frames;
+		u32 backend_burst_frames;
+	};
+	Stats GetStats() const;
+	void ResetStatsWindow();
+
 	// libretro: pull up to num_frames decoded frames out of the ring; the
 	// frontend drives audio timing instead of a backend device thread.
 	// Returns the number of frames actually written to samples.
@@ -121,6 +141,10 @@ protected:
 	void BaseInitialize(SampleReader sample_reader, bool stretch_enabled);
 
 	void ReadFrames(SampleType* samples, u32 num_frames);
+
+	/// Backends fill the backend_* members of Stats from their own atomics. Must not block and
+	/// must not touch a device object that may be mid-rebuild on another thread.
+	virtual void FillBackendStats(Stats* stats) const {}
 
 	template <AudioExpansionMode mode, ReadChannel c0 = READ_CHANNEL_NONE, ReadChannel c1 = READ_CHANNEL_NONE,
 		ReadChannel c2 = READ_CHANNEL_NONE, ReadChannel c3 = READ_CHANNEL_NONE, ReadChannel c4 = READ_CHANNEL_NONE,
@@ -178,6 +202,12 @@ private:
 
 	std::atomic<u32> m_rpos{0};
 	std::atomic<u32> m_wpos{0};
+
+	// Stats window (see GetStats). Single writer each, relaxed; reset by the 1 Hz poller.
+	std::atomic<u32> m_stat_underruns{0};
+	std::atomic<u32> m_stat_fabricated_frames{0};
+	std::atomic<u32> m_stat_overruns{0};
+	std::atomic<u32> m_stat_low_water{0xFFFFFFFFu};
 
 	std::unique_ptr<soundtouch::SoundTouch> m_soundtouch;
 

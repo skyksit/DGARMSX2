@@ -75,6 +75,34 @@ u32 GetConsoleSampleRate();
 	// libretro: direct access to the output stream so the frontend can pull
 	// mixed frames from retro_run.
 	AudioStream* GetOutputStream();
+
+/// Audio telemetry published once per second by PollAudioStats(). Readable from any thread.
+struct AudioStatsSnapshot
+{
+	u32 underruns = 0;         ///< ring underruns in the last 1 s window
+	u32 fabricated_frames = 0; ///< frames of stretched/silent output fabricated in the window
+	u32 overruns = 0;          ///< ring overruns (producer ahead) in the window
+	u32 low_water_frames = 0;  ///< lowest ring occupancy right after a read, in the window
+	u32 buffered_frames = 0;   ///< ring occupancy at the tick
+	u32 target_frames = 0;     ///< ring target (BufferMS)
+	u32 backend_xruns = 0;     ///< device-side xruns since the stream opened (0 if unsupported)
+	u32 backend_buffer_frames = 0;
+	u32 backend_burst_frames = 0;
+	u32 sample_rate = 0;
+	u32 windows = 0;           ///< 1 s windows published so far (0 = nothing published yet)
+	// Session-cumulative (survive stream recreates) — what a host records at session end.
+	u32 total_underruns = 0;
+	u32 total_fabricated_frames = 0;
+	u32 total_overruns = 0;
+};
+
+/// CPU thread only (owns s_output_stream). Cheap unless a second has elapsed; then it snapshots
+/// the ring/backend counters, resets the window and logs ONE warning line if anything went wrong.
+/// Called from VMManager::Internal::VSyncOnCPUThread().
+void PollAudioStats();
+
+/// Copy of the last published snapshot. Safe from any thread (mutex copy, never touches the stream).
+AudioStatsSnapshot GetAudioStatsSnapshot();
 } // namespace SPU2
 
 void SPU2write(u32 mem, u16 value);

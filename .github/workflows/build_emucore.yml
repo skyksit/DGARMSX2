@@ -127,7 +127,8 @@ jobs:
           fi
           # v6 어댑테이션 필수 심볼 (구 setCustomDriverPath/reloadCheats/hasValidVm 은
           # setCustomVulkanDriver/reloadPatches/hasActiveVM 으로 개명됨)
-          for sym in initialize runVMThread onNativeSurfaceChanged setPadButton setSetting setCustomVulkanDriver reloadPatches hasActiveVM usbLightgunAim usbLightgunButton; do
+          # v9: +getAudioStatsJSON (오디오 언더런/xrun 1Hz 스냅샷 — 블루투스 끊김 진단)
+          for sym in initialize runVMThread onNativeSurfaceChanged setPadButton setSetting setCustomVulkanDriver reloadPatches hasActiveVM usbLightgunAim usbLightgunButton getAudioStatsJSON; do
             readelf --dyn-syms -W "$SO" | grep -q "Java_kr_co_iefriends_pcsx2_NativeApp_$sym" \
               || { echo "::error::필수 JNI 심볼 누락: $sym"; exit 1; }
           done
