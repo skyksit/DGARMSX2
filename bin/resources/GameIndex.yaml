@@ -13407,7 +13407,7 @@ SLAJ-25066:
     vuClampMode: 0 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -13551,7 +13551,7 @@ SLAJ-25094:
     vuClampMode: 3 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -13732,7 +13732,7 @@ SLED-51211:
   gsHWFixes:
     gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
     autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
-    halfPixelOffset: 2 # Aligns bloom effect.
+    halfPixelOffset: 4 # Aligns bloom effect.
     bilinearUpscale: 2 # Reduces color banding of the sun glare.
     nativeScaling: 2 # Fixes post lighting.
   roundModes:
@@ -14154,7 +14154,7 @@ SLED-53512:
     vuClampMode: 0 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -14201,7 +14201,7 @@ SLED-53637:
     vuClampMode: 0 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -16952,7 +16952,7 @@ SLES-51044:
   gsHWFixes:
     gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
     autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
-    halfPixelOffset: 2 # Aligns bloom effect.
+    halfPixelOffset: 4 # Aligns bloom effect.
     bilinearUpscale: 2 # Reduces color banding of the sun glare.
     nativeScaling: 2 # Fixes post lighting.
   roundModes:
@@ -22104,7 +22104,7 @@ SLES-52968:
   gsHWFixes:
     gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
     autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
-    halfPixelOffset: 2 # Aligns bloom effect.
+    halfPixelOffset: 4 # Aligns bloom effect.
     bilinearUpscale: 2 # Reduces color banding of the sun glare.
     nativeScaling: 2 # Fixes post lighting.
   roundModes:
@@ -23703,7 +23703,7 @@ SLES-53506:
     vuClampMode: 0 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -23724,7 +23724,7 @@ SLES-53507:
     vuClampMode: 0 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -27431,7 +27431,7 @@ SLES-54627:
     vuClampMode: 3 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -27643,7 +27643,7 @@ SLES-54681:
     vuClampMode: 3 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -31415,7 +31415,7 @@ SLKA-25039:
   gsHWFixes:
     gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
     autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
-    halfPixelOffset: 2 # Aligns bloom effect.
+    halfPixelOffset: 4 # Aligns bloom effect.
     bilinearUpscale: 2 # Reduces color banding of the sun glare.
     nativeScaling: 2 # Fixes post lighting.
   roundModes:
@@ -32554,7 +32554,7 @@ SLKA-25260:
     vuClampMode: 3 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -32792,7 +32792,7 @@ SLKA-25304:
     vuClampMode: 0 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -33895,7 +33895,7 @@ SLPM-55004:
     vuClampMode: 0 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -34081,7 +34081,7 @@ SLPM-55036:
     vuClampMode: 3 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -47824,7 +47824,7 @@ SLPM-66108:
     vuClampMode: 0 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -51321,7 +51321,7 @@ SLPM-66652:
     vuClampMode: 0 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -51890,7 +51890,7 @@ SLPM-66739:
     vuClampMode: 3 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -59534,7 +59534,7 @@ SLPS-25351:
   gsHWFixes:
     gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
     autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
-    halfPixelOffset: 2 # Aligns bloom effect.
+    halfPixelOffset: 4 # Aligns bloom effect.
     bilinearUpscale: 2 # Reduces color banding of the sun glare.
     nativeScaling: 2 # Fixes post lighting.
   roundModes:
@@ -66855,7 +66855,7 @@ SLUS-20497:
   gsHWFixes:
     gpuTargetCLUT: 1 # Fixes bloom and sun rendering in front of everything.
     autoFlush: 1 # Fixes bloom and sun rendering in front of everything.
-    halfPixelOffset: 2 # Aligns bloom effect.
+    halfPixelOffset: 4 # Aligns bloom effect.
     bilinearUpscale: 2 # Reduces color banding of the sun glare.
     nativeScaling: 2 # Fixes post lighting.
   roundModes:
@@ -71192,7 +71192,7 @@ SLUS-21242:
     vuClampMode: 0 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -73398,7 +73398,7 @@ SLUS-21596:
     vuClampMode: 3 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
@@ -76123,7 +76123,7 @@ SLUS-29153:
     vuClampMode: 0 # Fixes buggy lighting in the garage.
   gsHWFixes:
     recommendedBlendingLevel: 3 # Improves car reflections.
-    halfPixelOffset: 2 # Fixes depth lines.
+    halfPixelOffset: 4 # Fixes depth lines.
     autoFlush: 2 # Fixes blur and obscures sun behind objects.
     gpuTargetCLUT: 1 # Fixes sun penetrating bridges (along with HPO special).
     bilinearUpscale: 2 # Smooths out sun glare textures like native.
