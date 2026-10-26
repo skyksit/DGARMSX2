@@ -17,6 +17,8 @@
 
 #include <mutex>
 
+#include <atomic>
+
 #if defined(__aarch64__) || defined(_M_ARM64)
 #include "SPU2/spu2_neon.h"
 #endif
@@ -48,6 +50,7 @@ static std::mutex s_audio_stats_mutex;
 static SPU2::AudioStatsSnapshot s_audio_stats;
 static Common::Timer::Value s_audio_stats_last_tick = 0;
 static u32 s_audio_stats_prev_xruns = 0;
+static bool OutputShouldPause(bool vm_paused);
 
 float DCFilterIn[2], DCFilterOut[2];
 
@@ -148,7 +151,7 @@ void SPU2::CreateOutputStream()
 
 	SPU2::UpdateOutputVolume();
 	s_output_stream->SetNominalRate(GetNominalRate());
-	s_output_stream->SetPaused(VMManager::GetState() == VMState::Paused);
+	s_output_stream->SetPaused(OutputShouldPause(VMManager::GetState() == VMState::Paused));
 }
 
 void SPU2::UpdateSampleRate()
@@ -237,18 +240,42 @@ void SPU2::SaveOutputVolume()
 // it, and the recovery raced the resume so audio stayed dead until a manual
 // menu resume. When this is set, the pause/resume edges are skipped and the
 // stream is left running (silence-on-underrun) for the duration of the park.
-static bool s_output_pause_suppressed = false;
+static std::atomic<bool> s_output_pause_suppressed{false};
+
+// The app is not visible. Suppression keeps the device warm for a quick resume, but no one resumes
+// a game they cannot see, and a running stream keeps Android's audio mixer holding a wakelock: a
+// game paused behind the menu and the device locked went from 76% to 0% overnight (#825, #817).
+// While this is set, a paused VM pauses its output, suppressed or not.
+static std::atomic<bool> s_output_backgrounded{false};
+
+static bool OutputShouldPause(bool vm_paused)
+{
+	return vm_paused && (!s_output_pause_suppressed.load() || s_output_backgrounded.load());
+}
 
 void SPU2::SetOutputPaused(bool paused)
 {
-	if (s_output_pause_suppressed)
-		return;
-	s_output_stream->SetPaused(paused);
+	// Both edges follow the same rule. While suppressed in the foreground the stream stays
+	// running, so the resume edge finds it running and does nothing, as before. After the
+	// background has paused it, the resume edge starts it again.
+	s_output_stream->SetPaused(OutputShouldPause(paused));
 }
 
 void SPU2::SetOutputPauseSuppressed(bool suppressed)
 {
 	s_output_pause_suppressed = suppressed;
+}
+
+void SPU2::SetOutputBackgrounded(bool backgrounded)
+{
+	s_output_backgrounded = backgrounded;
+}
+
+void SPU2::UpdateOutputPaused()
+{
+	const VMState state = VMManager::GetState();
+	if (s_output_stream && (state == VMState::Running || state == VMState::Paused))
+		s_output_stream->SetPaused(OutputShouldPause(state == VMState::Paused));
 }
 
 void SPU2::InternalReset(bool psxmode)
