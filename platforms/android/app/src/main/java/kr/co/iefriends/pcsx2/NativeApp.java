@@ -243,6 +243,11 @@ public class NativeApp {
 
 	/** Press/release one GUNCON_* binding on a port. */
 	public static native void usbLightgunButton(int port, int bind, boolean pressed);
+
+	// GunCon2 (dsam3 contract, emucore v5.3): aim as a 0..1 fraction of the touch view, scaled
+	// natively to GS window pixels; buttons by guncon2.cpp BID_*. port 0 = [USB1].
+	public static native void setLightgunPosition(float x, float y);
+	public static native void setGunButton(int port, int bid, boolean pressed);
 	public static native String getGameTitle(String path);
 	public static native String getGameSerial();
 	public static native String getGameCRC();

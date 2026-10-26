@@ -2352,6 +2352,35 @@ Java_kr_co_iefriends_pcsx2_NativeApp_usbLightgunButton(JNIEnv*, jclass, jint por
         (pressed == JNI_TRUE) ? 1.0f : 0.0f);
 }
 
+// dsam3 core contract (carried over from emucore v5.3, ef9cdc2519): GunCon2 aim as a fraction
+// (0..1) of the touch view, scaled here to the GS window (surface buffer) pixels that
+// GunCon2State's GSTranslateWindowToDisplayCoordinates mapping uses. The buffer can be smaller
+// than the view (performance downscale, resolution override), and passing view pixels straight
+// through left the aim stuck offscreen. usbLightgunAim keeps taking raw buffer pixels.
+extern "C" JNIEXPORT void JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_setLightgunPosition(JNIEnv*, jclass, jfloat p_nx, jfloat p_ny) {
+    if (!VMManager::HasValidVM())
+        return;
+    float width, height;
+    {
+        std::lock_guard<std::mutex> lock(s_window_mutex);
+        width = static_cast<float>(s_window_width);
+        height = static_cast<float>(s_window_height);
+    }
+    if (width <= 0.0f || height <= 0.0f)
+        return;
+    // Pointer 0: GunCon2State::GetAbsolutePosition reads index 0 specifically.
+    InputManager::UpdatePointerAbsolutePosition(0, p_nx * width, p_ny * height);
+}
+
+// dsam3 core contract (emucore v5.3): GunCon2 button by guncon2.cpp BID_* (TRIGGER=13, A=3, B=2,
+// C=1, SHOOT_OFFSCREEN=16, RECALIBRATE=17). Same path as usbLightgunButton.
+extern "C" JNIEXPORT void JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_setGunButton(JNIEnv* env, jclass clazz, jint p_port, jint p_bid,
+                                                  jboolean p_pressed) {
+    Java_kr_co_iefriends_pcsx2_NativeApp_usbLightgunButton(env, clazz, p_port, p_bid, p_pressed);
+}
+
 // One-time repair for enable lists poisoned by the old bulk auto-sync.
 //
 // Until this release, opening the Patch Manager persisted every uncommented group of every .pnach
