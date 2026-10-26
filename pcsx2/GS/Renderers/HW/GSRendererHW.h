@@ -261,6 +261,7 @@ private:
 
 	void SetTCOffset();
 	bool NextDrawColClip() const;
+	bool IsColClipCounterDraw() const;
 	bool IsPossibleChannelShuffle() const;
 	bool IsPageCopy() const;
 	bool NextDrawMatchesShuffle() const;
