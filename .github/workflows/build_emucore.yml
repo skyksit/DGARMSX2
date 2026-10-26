@@ -1,13 +1,19 @@
 # dsam3/retrople PS2 코어 빌드 — libemucore.so (arm64-v8a)
 #
 # upstream 재구성(platforms/android 레이아웃, github/play flavor) 대응판.
-# APK 전체가 아니라 네이티브 코어(.so)만 산출물로 뽑아 200store 배포용으로 검증한다.
-# githubRelease variant 는 CMAKE_BUILD_TYPE=Release + LTO ON.
+# APK 전체가 아니라 네이티브 코어(.so)와 그 코어가 읽는 리소스만 산출물로 뽑아
+# 200store 배포용으로 검증한다. githubRelease variant 는 CMAKE_BUILD_TYPE=Release + LTO ON.
 #
-# 게이트 3종 (하나라도 실패하면 배포 금지):
+# 리소스(ps2-resources.zip): 코어는 셰이더·GameIndex·모바일 GameDB 오버레이
+# (armsx2_overrides.yaml)를 EmuFolders::Resources(dsam3: files/ps2data/resources/)에서 읽는다.
+# 코어만 교체하면 셰이더 수정과 오버레이가 반영되지 않으므로, 같은 APK 의 assets/resources/
+# 를 그대로 묶어 코어와 함께 배포한다. zip 루트 = resources 디렉터리 내용.
+#
+# 게이트 4종 (하나라도 실패하면 배포 금지):
 #   1. ELF LOAD 정렬 0x4000 (Android 15+ 16KB 페이지 요구)
 #   2. DT_NEEDED 가 시스템 라이브러리 허용 목록 안인지 (동반 라이브러리는 함께 추출·배포)
 #   3. JNI 심볼 Java_kr_co_iefriends_pcsx2_NativeApp_* 존재
+#   4. 리소스 필수 파일(GameIndex, 오버레이, Vulkan/GL tfx 셰이더) 존재
 #
 # ⚠ ARMSX2_ANDROID_HOST_PAGE_SIZE 기본 0x1000(4KB). 16KB 페이지 기기 대응 코어는
 #   -Parmsx2.hostPageSize=0x4000 별도 빌드 필요 (upstream 은 4k/16k 이중 코어 체계).
@@ -68,6 +74,15 @@ jobs:
           unzip -o "$APK" 'lib/arm64-v8a/*.so' -d extracted
           ls -la extracted/lib/arm64-v8a/
           test -f extracted/lib/arm64-v8a/libemucore.so
+
+      - name: Extract PS2 resources from APK
+        run: |
+          APK=$(find platforms/android/app/build/outputs/apk -type f -name "*.apk" -print -quit)
+          unzip -q -o "$APK" 'assets/resources/*' -d extracted
+          # Windows 전용 DX11 셰이더는 모바일 백엔드가 컴파일하지 않음
+          rm -rf extracted/assets/resources/shaders/dx11
+          du -sh extracted/assets/resources
+          find extracted/assets/resources -maxdepth 2 | sort | head -50
 
       - name: Keep unstripped emucore for symbolication
         run: |
@@ -134,6 +149,19 @@ jobs:
           done
           echo "OK: required JNI symbols present"
 
+      - name: "Gate 4: PS2 resources"
+        run: |
+          RES=extracted/assets/resources
+          FAIL=0
+          for f in GameIndex.yaml armsx2_overrides.yaml shaders/vulkan/tfx.glsl shaders/opengl/tfx_fs.glsl shaders/common/fxaa.fx; do
+            test -s "$RES/$f" || { echo "::error::리소스 누락: $f — 코어 단독 배포 시 셰이더/GameDB 오버레이가 반영되지 않음"; FAIL=1; }
+          done
+          # 오버레이는 GameIndex 와 같은 디렉터리에 있어야 GameDatabase 가 읽는다
+          python3 -c "import yaml" 2>/dev/null || pip install --quiet pyyaml
+          python3 -c "import yaml,sys; d=yaml.safe_load(open('$RES/armsx2_overrides.yaml',encoding='utf-8')); print('overlay entries:', len(d))" \
+            || { echo "::error::armsx2_overrides.yaml YAML 파싱 실패"; FAIL=1; }
+          exit $FAIL
+
       - name: "Package deploy layout (200store: cores/1.0/arm64-v8a/)"
         run: |
           mkdir -p deploy/cores/1.0/arm64-v8a
@@ -143,10 +171,20 @@ jobs:
               cp "extracted/lib/arm64-v8a/$extra" deploy/cores/1.0/arm64-v8a/
             fi
           done
+          # 리소스: zip 루트 = resources 디렉터리 내용 (dsam3 files/ps2data/resources/ 에 풀어 덮어씀).
+          # 파일 mtime 을 커밋 시각으로 고정해 같은 커밋이면 같은 zip 이 나오게 한다.
+          COMMIT_TIME=$(git log -1 --format=%cI)
+          find extracted/assets/resources -exec touch -d "$COMMIT_TIME" {} +
+          (cd extracted/assets/resources && find . -type f | LC_ALL=C sort | zip -q -X -@ ../../../deploy/cores/1.0/arm64-v8a/ps2-resources.zip)
+          unzip -l deploy/cores/1.0/arm64-v8a/ps2-resources.zip | tail -1
           (cd deploy && find . -type f -exec sha256sum {} \; | tee SHA256SUMS)
           mv deploy/SHA256SUMS deploy/cores/1.0/arm64-v8a/
+          SHADER_VER=$(grep -oE 'SHADER_CACHE_VERSION = [0-9]+' pcsx2/ShaderCacheVersion.h | grep -oE '[0-9]+$')
           echo "COMMIT=${GITHUB_SHA}" > deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
           date -u +"BUILT_AT=%Y-%m-%dT%H:%M:%SZ" >> deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
+          echo "SHADER_CACHE_VERSION=${SHADER_VER}" >> deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
+          echo "RESOURCES_ZIP=ps2-resources.zip" >> deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
+          echo "RESOURCES_TARGET=files/ps2data/resources" >> deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
