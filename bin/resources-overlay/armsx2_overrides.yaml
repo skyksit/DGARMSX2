@@ -2088,27 +2088,74 @@ PBPX-95601:            # Gran Turismo 4 (NTSC-J, console bundle)
 # (measured on Adreno 722: 56.9 game fps with stutter -> 30.0 at full speed). Its game logic uses a
 # variable time step, so 30 is a correct speed. Not checked: heavy colossus fights.
 # gameFixes replaces the upstream list; upstream has none for these entries.
+#
+# nativeCounterDraws (upstream be7618deb7 / 5c15d2faad, bmdhacks 2026-10-22): the game counts its shadow
+# volumes by adding 1 or 255 with colour clamping off; the HW renderer blends them into a 16-bit copy of
+# the target, which Adreno blends slowly (about 15 of 37 ms per frame at 2x climbing a colossus on an
+# Adreno 722). Drawn at native resolution and stretched back: 36.9 -> 24.7 ms on that dump, shadow edges
+# move by at most one native pixel. Vulkan only. gsHWFixes replaces the upstream map, so upstream's three
+# keys are restated unchanged.
 SCUS-97472:
   gameFixes:
     - OPHFlagHack # Holds a steady 30 fps; see the block above.
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Upstream: fixes water color.
+    halfPixelOffset: 5 # Upstream: fixes misalignments and borders on side.
+    nativeScaling: 3 # Upstream: fixes post effects shadows and DOF effects.
+    nativeCounterDraws: 1 # Shadow volumes at native resolution; see the block above.
 SCES-53326:
   gameFixes:
     - OPHFlagHack # Holds a steady 30 fps; see the block above.
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Upstream: fixes water color.
+    halfPixelOffset: 5 # Upstream: fixes misalignments and borders on side.
+    nativeScaling: 3 # Upstream: fixes post effects shadows and DOF effects.
+    nativeCounterDraws: 1 # Shadow volumes at native resolution; see the block above.
 SCPS-15097:
   gameFixes:
     - OPHFlagHack # Holds a steady 30 fps; see the block above.
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Upstream: fixes water color.
+    halfPixelOffset: 5 # Upstream: fixes misalignments and borders on side.
+    nativeScaling: 3 # Upstream: fixes post effects shadows and DOF effects.
+    nativeCounterDraws: 1 # Shadow volumes at native resolution; see the block above.
 SCPS-19320:
   gameFixes:
     - OPHFlagHack # Holds a steady 30 fps; see the block above.
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Upstream: fixes water color.
+    halfPixelOffset: 5 # Upstream: fixes misalignments and borders on side.
+    nativeScaling: 3 # Upstream: fixes post effects shadows and DOF effects.
+    nativeCounterDraws: 1 # Shadow volumes at native resolution; see the block above.
 SCPS-19335:
   gameFixes:
     - OPHFlagHack # Holds a steady 30 fps; see the block above.
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Upstream: fixes water color.
+    halfPixelOffset: 5 # Upstream: fixes misalignments and borders on side.
+    nativeScaling: 3 # Upstream: fixes post effects shadows and DOF effects.
+    nativeCounterDraws: 1 # Shadow volumes at native resolution; see the block above.
 SCKA-20061:
   gameFixes:
     - OPHFlagHack # Holds a steady 30 fps; see the block above.
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Upstream: fixes water color.
+    halfPixelOffset: 5 # Upstream: fixes misalignments and borders on side.
+    nativeScaling: 3 # Upstream: fixes post effects shadows and DOF effects.
+    nativeCounterDraws: 1 # Shadow volumes at native resolution; see the block above.
 SCED-53962:
   gameFixes:
     - OPHFlagHack # Holds a steady 30 fps; see the block above.
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Upstream: fixes water color.
+    halfPixelOffset: 5 # Upstream: fixes misalignments and borders on side.
+    nativeScaling: 1 # Upstream: fixes post effects shadows and DOF effects.
+    nativeCounterDraws: 1 # Shadow volumes at native resolution; see the block above.
 SCUS-97505:
   gameFixes:
     - OPHFlagHack # Holds a steady 30 fps; see the block above.
+  gsHWFixes:
+    recommendedBlendingLevel: 4 # Upstream: fixes water color.
+    halfPixelOffset: 5 # Upstream: fixes misalignments and borders on side.
+    nativeScaling: 3 # Upstream: fixes post effects shadows and DOF effects.
+    nativeCounterDraws: 1 # Shadow volumes at native resolution; see the block above.
