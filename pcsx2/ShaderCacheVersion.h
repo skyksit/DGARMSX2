@@ -18,4 +18,6 @@
 // their numbers; always bump past our own last value.
 // 112: the Vulkan expanded-line vertex shader pairs a line's two ends by index on every device and
 // no longer gets a VS_PROVOKING_VERTEX_LAST define (upstream 7ee071a7a4, their 129).
-static constexpr u32 SHADER_CACHE_VERSION = 112; // 108 was upstream PR 14688; their 109 = our 111
+// 113: the Vulkan TFX shader gains PS_AF_IN_SRC1 (fixed blend factor through the second output on a
+// driver that ignores the blend constant; upstream 5791d09a2b, their 114).
+static constexpr u32 SHADER_CACHE_VERSION = 113; // 108 was upstream PR 14688; their 109 = our 111
