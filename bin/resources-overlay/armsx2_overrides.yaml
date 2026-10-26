@@ -564,6 +564,7 @@ SCUS-97328:
     autoFlush: 1
     getSkipCount: GSC_PolyphonyDigitalGames
     halfPixelOffset: 4
+    hwDownloadMode: 5 # Asynchronous readback; see the Gran Turismo 4 block at the end.
     minimumBlendingLevel: 3
 SCUS-97329:
   gsHWFixes:
@@ -1981,3 +1982,133 @@ TCES-52582:
   gsHWFixes:
     accurateAlphaTest: 1
     hwDownloadMode: 2
+
+# Gran Turismo 4 -- asynchronous GS download mode (5). Ported from upstream e327f0d38c (PR #797,
+# serial list by bmdhacks, 2026-10-08). Once a frame the game reads back a 64x8 brightness row;
+# at the default mode every read stalls the EE on the GPU (frame drops on Mali/Adreno at night and
+# in bumper/cockpit view). Asynchronous serves the real data a frame or two late without waiting.
+# SCUS-97328 keeps its existing entry above (hwDownloadMode added there). gsHWFixes replaces
+# upstream's block, so upstream's GT4 fixes are restated beside it.
+SCUS-97563:            # Gran Turismo 4 (NTSC-U, later release)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+SCUS-90682:            # Gran Turismo 4 (NTSC-U)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+SCUS-97436:            # Gran Turismo 4 (NTSC-U, Online Public Beta)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+SCES-51719:            # Gran Turismo 4 (PAL)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+SCPS-17001:            # Gran Turismo 4 (NTSC-J)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+SCPS-19252:            # Gran Turismo 4 (NTSC-J, PlayStation2 the Best)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+SCAJ-30006:            # Gran Turismo 4 (NTSC-C)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+SCAJ-30007:            # Gran Turismo 4 (NTSC-C)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+SCAJ-30008:            # Gran Turismo 4 (NTSC-C, PlayStation2 the Best)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+SCCS-60002:            # Gran Turismo 4 (NTSC-C, Chinese)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+SCKA-30001:            # Gran Turismo 4 (NTSC-K)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+SCKA-30004:            # Gran Turismo 4 (NTSC-K, BigHit Series)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+PBPX-95601:            # Gran Turismo 4 (NTSC-J, console bundle)
+  gsHWFixes:
+    autoFlush: 1
+    getSkipCount: "GSC_PolyphonyDigitalGames"
+    halfPixelOffset: 4
+    hwDownloadMode: 5
+    recommendedBlendingLevel: 3
+
+# Shadow of the Colossus -- OPHFlagHack. Ported from upstream f735c97b76 (bmdhacks, 2026-10-22;
+# NetherSX2 sets it on all eight releases). The game has no fixed frame rate and flips between 60
+# and 30 when a frame's EE work sits near one field, stuttering on handhelds. The hack makes the
+# once-per-vblank GIF_STAT idle check release a frame at most every second vblank: a steady 30 fps
+# (measured on Adreno 722: 56.9 game fps with stutter -> 30.0 at full speed). Its game logic uses a
+# variable time step, so 30 is a correct speed. Not checked: heavy colossus fights.
+# gameFixes replaces the upstream list; upstream has none for these entries.
+SCUS-97472:
+  gameFixes:
+    - OPHFlagHack # Holds a steady 30 fps; see the block above.
+SCES-53326:
+  gameFixes:
+    - OPHFlagHack # Holds a steady 30 fps; see the block above.
+SCPS-15097:
+  gameFixes:
+    - OPHFlagHack # Holds a steady 30 fps; see the block above.
+SCPS-19320:
+  gameFixes:
+    - OPHFlagHack # Holds a steady 30 fps; see the block above.
+SCPS-19335:
+  gameFixes:
+    - OPHFlagHack # Holds a steady 30 fps; see the block above.
+SCKA-20061:
+  gameFixes:
+    - OPHFlagHack # Holds a steady 30 fps; see the block above.
+SCED-53962:
+  gameFixes:
+    - OPHFlagHack # Holds a steady 30 fps; see the block above.
+SCUS-97505:
+  gameFixes:
+    - OPHFlagHack # Holds a steady 30 fps; see the block above.
