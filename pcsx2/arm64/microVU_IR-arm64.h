@@ -334,12 +334,21 @@ public:
 	// vfLoadReg: VF to load from (-1=temp, 0-31=VF, 32=ACC, 33=I)
 	// vfWriteReg: VF to write to (-1=none/read-only, 0-31, 32=ACC, 33=I)
 	// xyzw: components touched (mask: X=8, Y=4, Z=2, W=1; 0=full-read;
-	//       0xF=full-write). For SS writes a single bit is set.
+	//       0xF=full-write). For SS writes a single bit is set. With a
+	//       vfWriteReg, 0 is an empty field and the slot is a temp.
 	// cloneWrite: if true, clone cached reg so caller's write doesn't
 	//             stomp the cached value.
 	const a64::VRegister allocReg(int vfLoadReg = -1, int vfWriteReg = -1, int xyzw = 0, bool cloneWrite = true)
 	{
 		counter++;
+
+		// A slot with xyzw == 0 is recorded as an unmodified copy of its
+		// register. A write with an empty field passes the same value, so the
+		// slot holding its result would pass for a clean copy of vfWriteReg
+		// (VF0, for the writes that use it as the drop-it register), and a
+		// later read or partial write of that register would take the result
+		// for it. A write that touches no lane leaves a temp.
+		const int slotReg = xyzw ? vfWriteReg : -1;
 
 		// Search for cached copy.
 		if (vfLoadReg >= 0)
@@ -389,7 +398,7 @@ public:
 							else if (xyzw == 1)
 								emitSSShuffle(qmmI, qmmI, 3);
 						}
-						neonMap[z].VFreg = vfWriteReg;
+						neonMap[z].VFreg = slotReg;
 						neonMap[z].xyzw  = xyzw;
 						neonMap[z].isZero = (vfLoadReg == 0);
 					}
@@ -426,7 +435,7 @@ public:
 				mVUloadReg(qmmX, gprVUState, offsetof(VURegs, VF) + vfLoadReg * sizeof(VECTOR), xyzw);
 			}
 
-			neonMap[x].VFreg = vfWriteReg;
+			neonMap[x].VFreg = slotReg;
 			neonMap[x].xyzw  = xyzw;
 		}
 		else // Reg will not be modified (always load the full reg so it can be cached)
