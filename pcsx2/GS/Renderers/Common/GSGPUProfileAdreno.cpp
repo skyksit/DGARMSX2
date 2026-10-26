@@ -174,7 +174,9 @@ static bool ParseAdrenoModel(std::string_view hints, u16* model, char* suffix)
 // which accepts only a listed model, ignores them.
 static u16 AdrenoModelFromChipId(u32 vendor_id, u32 device_id)
 {
-	if (vendor_id != GpuVendorID::Qualcomm)
+	// Qualcomm's PCI vendor ID as Vulkan reports it (upstream names it GpuVendorID::Qualcomm).
+	constexpr u32 QUALCOMM_VENDOR_ID = 0x5143;
+	if (vendor_id != QUALCOMM_VENDOR_ID)
 		return 0;
 
 	const u32 core = (device_id >> 24) & 0xff;
