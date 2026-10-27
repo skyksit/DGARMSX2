@@ -83,6 +83,8 @@ enum class MobileGpuDriver : u8
 	ImaginationProprietary,
 	MesaPowerVR,
 	Angle,
+	/// Samsung Xclipse (RDNA) stock driver, and the ExynosTools-style wrappers that keep its driverID.
+	SamsungProprietary,
 };
 
 /// How specifically a profile was matched. A rule matched on the exact driver version is worth

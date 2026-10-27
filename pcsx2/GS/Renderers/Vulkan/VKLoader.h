@@ -91,6 +91,11 @@ class Error;
 #pragma clang diagnostic pop
 #endif
 
+#if defined(__ANDROID__)
+#include "common/Pcsx2Types.h"
+#include <string>
+#endif
+
 namespace Vulkan
 {
 	bool IsVulkanLibraryLoaded();
@@ -108,5 +113,27 @@ namespace Vulkan
 	/// Pass empty strings to revert to the system loader on next load.
 	void SetCustomDriverPath(const char* driver_dir, const char* driver_name,
 		const char* redirect_dir, const char* hook_lib_dir);
+
+	/// Outcome of the most recent LoadVulkanLibrary, so the host app can tell a custom
+	/// driver that actually loaded from one that silently fell back to the system loader.
+	/// The device fields are filled once GSDeviceVK has picked a physical device.
+	struct CustomDriverStatus
+	{
+		bool requested = false;
+		bool loaded = false;
+		std::string library_name;
+		std::string fallback_reason;
+
+		bool has_device = false;
+		u32 driver_id = 0;
+		u32 api_version = 0;
+		std::string driver_name;
+		std::string driver_info;
+		std::string device_name;
+	};
+
+	CustomDriverStatus GetCustomDriverStatus();
+	void SetActiveDeviceDriverInfo(u32 driver_id, u32 api_version, const char* driver_name,
+		const char* driver_info, const char* device_name);
 #endif
 } // namespace Vulkan

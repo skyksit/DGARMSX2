@@ -1014,6 +1014,16 @@ bool GSDeviceVK::ProcessDeviceExtensions()
 	// query
 	vkGetPhysicalDeviceProperties2(m_physical_device, &properties2);
 
+#ifdef __ANDROID__
+	// Lets the host confirm which ICD actually ended up behind the device (custom driver or system).
+	Vulkan::SetActiveDeviceDriverInfo(
+		m_optional_extensions.vk_khr_driver_properties ? static_cast<u32>(m_device_driver_properties.driverID) : 0u,
+		m_device_properties.apiVersion,
+		m_optional_extensions.vk_khr_driver_properties ? m_device_driver_properties.driverName : "",
+		m_optional_extensions.vk_khr_driver_properties ? m_device_driver_properties.driverInfo : "",
+		m_device_properties.deviceName);
+#endif
+
 	// The Mali r44p1 blob mishandles the in-tile attachment-feedback-loop blend path and
 	// loses the device under it — VK_ERROR_DEVICE_LOST on every game, but ONLY on this driver
 	// (Motorola Edge 60 Pro / Mali-G615 r44p1; other Mali blobs, including other G615 units,

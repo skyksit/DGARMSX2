@@ -279,6 +279,7 @@ const char* GpuProfileDetector::DriverToString(MobileGpuDriver value)
 		case MobileGpuDriver::ImaginationProprietary: return "Imagination proprietary";
 		case MobileGpuDriver::MesaPowerVR: return "Mesa PowerVR";
 		case MobileGpuDriver::Angle: return "ANGLE";
+		case MobileGpuDriver::SamsungProprietary: return "Samsung proprietary";
 		case MobileGpuDriver::Unknown:
 		default: return "Unknown";
 	}

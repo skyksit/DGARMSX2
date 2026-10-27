@@ -21,6 +21,7 @@ constexpr u32 DRIVER_ID_QUALCOMM_PROPRIETARY = 8;
 constexpr u32 DRIVER_ID_ARM_PROPRIETARY = 9;
 constexpr u32 DRIVER_ID_MESA_TURNIP = 18;
 constexpr u32 DRIVER_ID_MESA_PANVK = 20;
+constexpr u32 DRIVER_ID_SAMSUNG_PROPRIETARY = 21;
 constexpr u32 DRIVER_ID_IMAGINATION_OPEN_SOURCE_MESA = 25;
 
 constexpr u64 Bug(DriverBug bug)
@@ -267,6 +268,7 @@ static MobileGpuDriver DetectDriver(const GpuProfileSelection& selection,
 		case DRIVER_ID_MESA_TURNIP: return MobileGpuDriver::MesaTurnip;
 		case DRIVER_ID_IMAGINATION_PROPRIETARY: return MobileGpuDriver::ImaginationProprietary;
 		case DRIVER_ID_IMAGINATION_OPEN_SOURCE_MESA: return MobileGpuDriver::MesaPowerVR;
+		case DRIVER_ID_SAMSUNG_PROPRIETARY: return MobileGpuDriver::SamsungProprietary;
 		default: break;
 	}
 
@@ -281,6 +283,10 @@ static MobileGpuDriver DetectDriver(const GpuProfileSelection& selection,
 		return MobileGpuDriver::MesaPowerVR;
 	if (ContainsAny(driver_hints, {"angle"}))
 		return MobileGpuDriver::Angle;
+	// Only the driver's own strings: the renderer hint says "Xclipse" even under a non-Samsung ICD.
+	if (ContainsAny(ToLowerASCII(std::string(context.driver_name) + " " + std::string(context.driver_info)),
+			{"xclipse", "samsung"}))
+		return MobileGpuDriver::SamsungProprietary;
 
 	// With no explicit driver ID, Vulkan and native GLES vendor IDs identify the proprietary stack.
 	switch (selection.runtime_profile)
@@ -291,6 +297,8 @@ static MobileGpuDriver DetectDriver(const GpuProfileSelection& selection,
 			return MobileGpuDriver::QualcommProprietary;
 		case RuntimeGpuProfile::PowerVR:
 			return MobileGpuDriver::ImaginationProprietary;
+		case RuntimeGpuProfile::Xclipse:
+			return MobileGpuDriver::SamsungProprietary;
 		default:
 			return MobileGpuDriver::Unknown;
 	}

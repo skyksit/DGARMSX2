@@ -17,6 +17,7 @@
 #if defined(__ANDROID__)
 #include <dlfcn.h>
 #include <mutex>
+#include <unistd.h>
 #include "adrenotools/driver.h"
 #endif
 
@@ -52,6 +53,7 @@ namespace
 	std::string s_custom_driver_name;
 	std::string s_custom_redirect_dir;
 	std::string s_custom_hook_lib_dir;
+	Vulkan::CustomDriverStatus s_custom_driver_status;
 } // namespace
 
 void Vulkan::SetCustomDriverPath(const char* driver_dir, const char* driver_name,
@@ -64,17 +66,63 @@ void Vulkan::SetCustomDriverPath(const char* driver_dir, const char* driver_name
 	s_custom_hook_lib_dir = hook_lib_dir ? hook_lib_dir : "";
 }
 
+Vulkan::CustomDriverStatus Vulkan::GetCustomDriverStatus()
+{
+	std::lock_guard lock(s_custom_driver_mutex);
+	return s_custom_driver_status;
+}
+
+void Vulkan::SetActiveDeviceDriverInfo(u32 driver_id, u32 api_version, const char* driver_name,
+	const char* driver_info, const char* device_name)
+{
+	std::lock_guard lock(s_custom_driver_mutex);
+	s_custom_driver_status.has_device = true;
+	s_custom_driver_status.driver_id = driver_id;
+	s_custom_driver_status.api_version = api_version;
+	s_custom_driver_status.driver_name = driver_name ? driver_name : "";
+	s_custom_driver_status.driver_info = driver_info ? driver_info : "";
+	s_custom_driver_status.device_name = device_name ? device_name : "";
+}
+
+static void RecordCustomDriverFallback(std::string reason)
+{
+	std::lock_guard lock(s_custom_driver_mutex);
+	s_custom_driver_status.loaded = false;
+	s_custom_driver_status.fallback_reason = std::move(reason);
+}
+
 static bool TryOpenAdrenotoolsDriver(DynamicLibrary& library, Error* error)
 {
 	std::string driver_dir, driver_name, redirect_dir, hook_lib_dir;
 	{
 		std::lock_guard lock(s_custom_driver_mutex);
+		s_custom_driver_status = {};
 		if (s_custom_driver_dir.empty() || s_custom_driver_name.empty() || s_custom_hook_lib_dir.empty())
 			return false;
 		driver_dir   = s_custom_driver_dir;
 		driver_name  = s_custom_driver_name;
 		redirect_dir = s_custom_redirect_dir;
 		hook_lib_dir = s_custom_hook_lib_dir;
+		s_custom_driver_status.requested = true;
+		s_custom_driver_status.library_name = driver_name;
+	}
+
+	// adrenotools dlopens these by name from hook_lib_dir; a host that forgot to ship them
+	// otherwise only sees an opaque dlerror from inside the private linker namespace.
+	for (const char* hook : {"libhook_impl.so", "libmain_hook.so"})
+	{
+		std::string hook_path = hook_lib_dir;
+		if (!hook_path.empty() && hook_path.back() != '/')
+			hook_path += '/';
+		hook_path += hook;
+		if (access(hook_path.c_str(), R_OK) != 0)
+		{
+			std::string reason = "missing adrenotools hook library " + hook_path;
+			Console.Warning("VKLoader: %s — falling back to system loader.", reason.c_str());
+			Error::SetString(error, reason);
+			RecordCustomDriverFallback(std::move(reason));
+			return false;
+		}
 	}
 
 	int feature_flags = ADRENOTOOLS_DRIVER_CUSTOM;
@@ -107,10 +155,16 @@ static bool TryOpenAdrenotoolsDriver(DynamicLibrary& library, Error* error)
 			"adrenotools_open_libvulkan failed for {} ({}): {}",
 			driver_name, driver_dir, err ? err : "<no dlerror>");
 		Console.Warning("VKLoader: %s — falling back to system loader.", error ? error->GetDescription().c_str() : "custom driver load failed");
+		RecordCustomDriverFallback(fmt::format("adrenotools_open_libvulkan failed for {}: {}",
+			driver_name, err ? err : "<no dlerror>"));
 		return false;
 	}
 
 	library.Adopt(handle);
+	{
+		std::lock_guard lock(s_custom_driver_mutex);
+		s_custom_driver_status.loaded = true;
+	}
 	Console.WriteLn("VKLoader: adrenotools driver handle acquired.");
 	return true;
 }

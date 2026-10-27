@@ -917,6 +917,40 @@ Java_kr_co_iefriends_pcsx2_NativeApp_setCustomVulkanDriver(
         dir.c_str(), name.c_str(), redir.c_str(), hook.c_str());
 }
 
+// Result of the last Vulkan library load: whether a custom driver was requested, whether
+// adrenotools actually loaded it (or why it fell back to the system loader), and the
+// driverID/name the device then reported. driverId follows VkDriverId (18 = Turnip,
+// 8 = Qualcomm proprietary, 21 = Samsung/Xclipse). Device fields are empty before the
+// first Vulkan GS device is created.
+extern "C"
+JNIEXPORT jstring JNICALL
+Java_kr_co_iefriends_pcsx2_NativeApp_getVulkanDriverStatusJSON(JNIEnv* env, jclass) {
+    const auto escape = [](std::string_view s) {
+        std::string out;
+        out.reserve(s.size());
+        for (const char c : s) {
+            if (c == '"' || c == '\\') {
+                out += '\\';
+                out += c;
+            } else if (static_cast<unsigned char>(c) < 0x20) {
+                out += fmt::format("\\u{:04x}", static_cast<unsigned>(c));
+            } else {
+                out += c;
+            }
+        }
+        return out;
+    };
+    const Vulkan::CustomDriverStatus s = Vulkan::GetCustomDriverStatus();
+    const std::string json = fmt::format(
+        R"({{"requested":{},"loaded":{},"libraryName":"{}","fallbackReason":"{}",)"
+        R"("hasDevice":{},"driverId":{},"driverName":"{}","driverInfo":"{}","apiVersion":"{}.{}.{}","gpu":"{}"}})",
+        s.requested, s.loaded, escape(s.library_name), escape(s.fallback_reason),
+        s.has_device, s.driver_id, escape(s.driver_name), escape(s.driver_info),
+        VK_API_VERSION_MAJOR(s.api_version), VK_API_VERSION_MINOR(s.api_version),
+        VK_API_VERSION_PATCH(s.api_version), escape(s.device_name));
+    return env->NewStringUTF(json.c_str());
+}
+
 extern "C"
 JNIEXPORT jfloat JNICALL
 Java_kr_co_iefriends_pcsx2_NativeApp_getFPS(JNIEnv *env, jclass clazz) {

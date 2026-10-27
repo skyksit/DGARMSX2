@@ -9,11 +9,17 @@
 # 코어만 교체하면 셰이더 수정과 오버레이가 반영되지 않으므로, 같은 APK 의 assets/resources/
 # 를 그대로 묶어 코어와 함께 배포한다. zip 루트 = resources 디렉터리 내용.
 #
-# 게이트 4종 (하나라도 실패하면 배포 금지):
+# 게이트 5종 (하나라도 실패하면 배포 금지):
 #   1. ELF LOAD 정렬 0x4000 (Android 15+ 16KB 페이지 요구)
 #   2. DT_NEEDED 가 시스템 라이브러리 허용 목록 안인지 (동반 라이브러리는 함께 추출·배포)
 #   3. JNI 심볼 Java_kr_co_iefriends_pcsx2_NativeApp_* 존재
 #   4. 리소스 필수 파일(GameIndex, 오버레이, Vulkan/GL tfx 셰이더) 존재
+#   5. adrenotools hook 라이브러리(libhook_impl/libmain_hook/...) 존재·정렬·의존성
+#
+# 커스텀 Vulkan 드라이버 계약 (dsam3) — 상세는 docs/dsam3-custom-driver.md:
+#   hook .so 4종(adrenotools_hooks.zip) + 드라이버 zip → filesDir/ps2data/gpu_driver/ (내부 저장소 필수)
+#   첫 Vulkan 로드 전 setCustomVulkanDriver(dir/, libName, "", dir),
+#   부팅 후 getVulkanDriverStatusJSON() 으로 실제 로드 여부 확인.
 #
 # ⚠ ARMSX2_ANDROID_HOST_PAGE_SIZE 기본 0x1000(4KB). 16KB 페이지 기기 대응 코어는
 #   -Parmsx2.hostPageSize=0x4000 별도 빌드 필요 (upstream 은 4k/16k 이중 코어 체계).
@@ -24,6 +30,10 @@ on:
   push:
     tags:
       - 'emucore-v*'
+
+env:
+  # adrenotools 가 setCustomVulkanDriver 의 hookLibDir 에서 dlopen 하는 동반 라이브러리
+  HOOK_LIBS: libhook_impl.so libmain_hook.so libfile_redirect_hook.so libgsl_alloc_hook.so
 
 jobs:
   build-core:
@@ -143,7 +153,8 @@ jobs:
           # v6 어댑테이션 필수 심볼 (구 setCustomDriverPath/reloadCheats/hasValidVm 은
           # setCustomVulkanDriver/reloadPatches/hasActiveVM 으로 개명됨)
           # v9: +getAudioStatsJSON (오디오 언더런/xrun 1Hz 스냅샷 — 블루투스 끊김 진단)
-          for sym in initialize runVMThread onNativeSurfaceChanged setPadButton setSetting setCustomVulkanDriver reloadPatches hasActiveVM usbLightgunAim usbLightgunButton getAudioStatsJSON; do
+          # v9: +getVulkanDriverStatusJSON (커스텀 드라이버 실제 로드/대체 여부 진단)
+          for sym in initialize runVMThread onNativeSurfaceChanged setPadButton setSetting setCustomVulkanDriver reloadPatches hasActiveVM usbLightgunAim usbLightgunButton getAudioStatsJSON getVulkanDriverStatusJSON; do
             readelf --dyn-syms -W "$SO" | grep -q "Java_kr_co_iefriends_pcsx2_NativeApp_$sym" \
               || { echo "::error::필수 JNI 심볼 누락: $sym"; exit 1; }
           done
@@ -162,15 +173,42 @@ jobs:
             || { echo "::error::armsx2_overrides.yaml YAML 파싱 실패"; FAIL=1; }
           exit $FAIL
 
+      - name: "Gate 5: adrenotools hook libraries"
+        run: |
+          FAIL=0
+          for hook in $HOOK_LIBS; do
+            SO="extracted/lib/arm64-v8a/$hook"
+            if [ ! -f "$SO" ]; then
+              echo "::error::$hook 가 APK 에 없음 — 커스텀 Vulkan 드라이버 로드 불가"; FAIL=1; continue
+            fi
+            BAD=$(readelf -lW "$SO" | gawk '$1=="LOAD" { if (strtonum($NF) < 0x4000) print }')
+            if [ -n "$BAD" ]; then
+              echo "::error::$hook LOAD segment alignment < 0x4000 (16KB)"; FAIL=1
+            fi
+            for need in $(readelf -d "$SO" | awk '/NEEDED/ {gsub(/[\[\]]/,"",$NF); print $NF}'); do
+              if ! echo "$need" | grep -Eq '^lib(c|m|dl|log|android|hook_impl)\.so$'; then
+                echo "::error::$hook 의 허용 목록 밖 DT_NEEDED: $need"; FAIL=1
+              fi
+            done
+          done
+          [ $FAIL -eq 0 ] && echo "OK: hook libs present: $HOOK_LIBS"
+          exit $FAIL
+
       - name: "Package deploy layout (200store: cores/1.0/arm64-v8a/)"
         run: |
           mkdir -p deploy/cores/1.0/arm64-v8a
           cp extracted/lib/arm64-v8a/libemucore.so deploy/cores/1.0/arm64-v8a/
-          for extra in libadrenotools.so libSDL3.so; do
-            if [ -f "extracted/lib/arm64-v8a/$extra" ]; then
-              cp "extracted/lib/arm64-v8a/$extra" deploy/cores/1.0/arm64-v8a/
-            fi
+          if [ -f extracted/lib/arm64-v8a/libSDL3.so ]; then
+            cp extracted/lib/arm64-v8a/libSDL3.so deploy/cores/1.0/arm64-v8a/
+          fi
+          # adrenotools hook 라이브러리: 코어가 아니라 adrenotools 가 hookLibDir 에서 이름으로 dlopen 한다.
+          # 빠지면 커스텀 드라이버(Turnip/Qualcomm/Xclipse)가 조용히 시스템 드라이버로 대체된다. Gate 5 가 존재를 보장.
+          for hook in $HOOK_LIBS; do
+            cp "extracted/lib/arm64-v8a/$hook" deploy/cores/1.0/arm64-v8a/
           done
+          # dsam3 는 hook 을 서버 drivers/adrenotools_hooks_v1.zip 으로 받는다 — 같은 4종을 zip 루트에 묶어 둔다
+          (cd deploy/cores/1.0/arm64-v8a && zip -q -X adrenotools_hooks.zip $HOOK_LIBS)
+          cp docs/dsam3-custom-driver.md deploy/cores/1.0/arm64-v8a/DRIVERS.md
           # 리소스: zip 루트 = resources 디렉터리 내용 (dsam3 files/ps2data/resources/ 에 풀어 덮어씀).
           # 파일 mtime 을 커밋 시각으로 고정해 같은 커밋이면 같은 zip 이 나오게 한다.
           COMMIT_TIME=$(git log -1 --format=%cI)
@@ -185,6 +223,8 @@ jobs:
           echo "SHADER_CACHE_VERSION=${SHADER_VER}" >> deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
           echo "RESOURCES_ZIP=ps2-resources.zip" >> deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
           echo "RESOURCES_TARGET=files/ps2data/resources" >> deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
+          echo "HOOK_LIBS=${HOOK_LIBS}" >> deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
+          echo "HOOK_LIB_TARGET=files/ps2data/gpu_driver" >> deploy/cores/1.0/arm64-v8a/BUILD_INFO.txt
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7

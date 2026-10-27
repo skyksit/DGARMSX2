@@ -427,6 +427,11 @@ public class NativeApp {
 		String driverDir, String driverName,
 		String redirectDir, String hookLibDir);
 
+	/** JSON snapshot of the last Vulkan library load: requested/loaded/fallbackReason plus the
+	 *  driverId (VkDriverId), driverName, driverInfo, apiVersion and gpu the device reported.
+	 *  Lets the host tell a working custom driver from a silent fallback to the system one. */
+	public static native String getVulkanDriverStatusJSON();
+
 	public static native void setPadVibration(boolean isonoff);
 	public static native void setPadButton(int index, int range, boolean iskeypressed);
 	/** Local co-op: like setPadButton but routes to PS2 controller port 0 (Player 1)
